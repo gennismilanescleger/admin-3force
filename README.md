@@ -10,7 +10,7 @@
 
 La app sirve para: ver cuentas y túneles, ver la matriz de facturación manual, **marcar pagos**, y ejecutar acciones de túnel (descargar la configuración WireGuard, cambiar de servidor, regenerar claves, reaprovisionar, editar notas, deshabilitar/habilitar). En una etapa posterior leerá los SMS de Transfermóvil/EnZona del teléfono para presentar los pagos recibidos.
 
-**Estado general:** la app está en su línea **Lite** (app de pruebas funcional, con datos reales del panel) mientras se prueba cada flujo contra la API real. Cuando todos los flujos estén probados, se construirá la **app nativa definitiva** con el mismo comportamiento. El prototipo web de diseño está congelado como referencia visual (no está en este repo; sus decisiones están consolidadas en la SPEC).
+**Estado general:** la app está en su línea **Lite** (app de pruebas funcional, con datos reales del panel) mientras se prueba cada flujo contra la API real. Cuando todos los flujos estén probados, se construirá la **app nativa definitiva** con el mismo comportamiento. El prototipo web de diseño está congelado como referencia visual; sus decisiones están consolidadas en la SPEC y una copia exportada de la página vive en este repo (`diseno/prototipo-admin-3force.html`, subida el 2026-10-31 a petición del propietario; el original sigue en Muse como artefacto).
 
 **Dispositivo de pruebas:** el teléfono del propietario (Galaxy S20 FE, Android 12 / API 31). Él instala cada APK y ejecuta las rondas de prueba; los resultados vuelven como bloques de diagnóstico de la propia app.
 
@@ -25,6 +25,7 @@ La app sirve para: ver cuentas y túneles, ver la matriz de facturación manual,
 | `API-WEB-3FORCE.md` | La API de la web TAL COMO la documenta el propio panel (página Developers, API v2.1.0, 148 endpoints). Solo documentación oficial, sin nada de la app. |
 | `API-INSPECTION.md` | El registro interno de trabajo sobre la API: cada ronda de pruebas con rutas, payloads, respuestas literales y veredictos. Es la fuente de verdad de QUÉ ESTÁ PROBADO y qué no. |
 | `lite/` | **La app actual.** Java puro, cero dependencias. `lite/build.sh` compila el APK. `lite/BUILD-HOME.md` y `lite/BUILD-LITE.md` son su bitácora de construcción versión por versión. |
+| `diseno/prototipo-admin-3force.html` | El **prototipo visual de diseño** exportado como HTML único autocontenido (datos de demostración, sin conexión real). Es la referencia visual congelada; se abre en cualquier navegador. El artefacto original vive en Muse. |
 | `android/` | El primer intento en Kotlin (v0.1.0): su APK no instaló en el teléfono del propietario y la línea se abandonó. Se conserva como referencia. NO es la app actual. |
 | APKs `Admin3FORCE-<versión>.apk` | Los entregables de cada versión Lite. **No están en GitHub** (la vía de subida no admite binarios); se recompilan desde `lite/` con `build.sh`. La última es la **0.9.5-lite**. |
 
