@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta del prototipo Admin 3FORCE -->
+    <color name="bg">#070F1E</color>
+    <color name="card">#111E33</color>
+    <color name="border">#23365A</color>
+    <color name="cyan">#22D3EE</color>
+    <color name="blue">#2563EB</color>
+    <color name="text">#F1F5F9</color>
+    <color name="text2">#94A3B8</color>
+    <color name="greenSoft">#34D399</color>
+    <color name="amber">#F5B544</color>
+    <color name="redSoft">#F87171</color>
+    <color name="onCyan">#06222B</color>
+</resources>

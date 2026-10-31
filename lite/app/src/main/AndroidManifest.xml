@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Admin 3FORCE Lite — manifiesto.
+  Java puro + framework Android: sin namespace de Gradle, el paquete va aquí
+  porque el APK se enlaza directamente con aapt2 (ver build.sh).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.gennis.admin3force"
+    android:versionCode="17"
+    android:versionName="0.8.5-lite">
+
+    <uses-sdk
+        android:minSdkVersion="21"
+        android:targetSdkVersion="34" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <!-- Descarga de .conf en Android ≤ 28 (en 29+ se usa MediaStore, sin
+         permiso). En el teléfono de pruebas (Android 12) no se usa. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <application
+        android:label="Admin 3FORCE"
+        android:icon="@android:drawable/sym_def_app_icon"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:allowBackup="false">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
