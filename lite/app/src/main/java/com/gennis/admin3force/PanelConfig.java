@@ -145,5 +145,22 @@ public final class PanelConfig {
     public static final String REGENERATE_SUFFIX = "regenerate/?personal=false";
     public static final String REPROVISION_SUFFIX = "reprovision/";
 
+    // ---- Creación y cuentas (v0.9.0: rutas DOCUMENTADAS) ----
+    // Crear cuenta: POST a USERS_URL (la colección de usuarios acepta
+    // GET/POST según el índice Developers). Crear túnel: POST a la
+    // colección de túneles, SIN el parámetro de alcance (la creación no
+    // es una búsqueda en el viewset; si el servidor la trata como la
+    // familia del detalle, el Diagnóstico lo mostrará y la siguiente
+    // build añade ?personal=false — una sola variable por ronda).
+    public static final String TUNNELS_CREATE_URL = API_V1 + "/tunnels/";
+
+    /** Creación por lotes: POST /api/v1/tunnels/bulk-create/ (documentado). */
+    public static final String TUNNELS_BULK_CREATE_URL = API_V1 + "/tunnels/bulk-create/";
+
+    /** Restablecer contraseña de una cuenta: POST documentado. */
+    public static String resetPasswordUrl(long id) {
+        return userUrl(id) + "reset-password/";
+    }
+
     private PanelConfig() {}
 }

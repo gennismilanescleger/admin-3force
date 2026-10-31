@@ -152,6 +152,105 @@ import java.util.concurrent.Executors;
  *    OPTIONS y escribe el campo de estado que la API declare
  *    escribible; statusOf además manda disabled_date sobre el status
  *    de salida.
+ *  - v0.8.6: deshabilitar/habilitar por disabled_date (ver la nota
+ *    de toggleWrite): el OPTIONS del detalle no trae «actions»
+ *    utilizables (ronda 7) y el respaldo {status:"inactive"} dio la
+ *    pieza clave — 400 «no es una elección válida»: el status se
+ *    valida al escribir («disabled» sí pasó en la ronda 4) pero el
+ *    estado no se mueve, señal de que el modelo lo recalcula al
+ *    guardar desde disabled_date. El OPTIONS queda como lectura
+ *    diagnóstica registrada; ya no decide la escritura.
+ *  - v0.8.7: ronda de ELIMINAR (autorizada por Gennis sobre los
+ *    túneles desechables 558/559 que él creó en prueba_claude_3010
+ *    al volver la creación del panel): Eliminar queda tal cual
+ *    (DELETE al detalle con ?personal=false y su guarda de nombre)
+ *    pero su aviso ya no dice que la creación está caída, porque
+ *    volvió el 31/10 ~12:56. Y Deshabilitar/Habilitar dejan de
+ *    llamar al OPTIONS (405: no existe; era un viaje inútil antes
+ *    de cada escritura) — el intento disabled_date queda como
+ *    marcador registrado hasta que el «dif de la web» revele el
+ *    mecanismo real del interruptor.
+ *  - v0.8.8: DESHABILITAR RESUELTO en el papel (ver la nota de
+ *    toggleWrite): el «dif de la web» mostró que al apagar el 558
+ *    en el panel el objeto queda status="disabled" con la
+ *    disabled_date puesta por el servidor — la fecha es de salida
+ *    y el campo escribible es «status». Deshabilitar/Habilitar
+ *    vuelven a {"status":"disabled"} / {"status":"active"} (el
+ *    payload de la ronda 4, ahora con la verificación al instante
+ *    de la 0.8.5 para confirmarlo en el acto). La prueba de cierre
+ *    va sobre el 558, que la web dejó deshabilitado: Habilitar y
+ *    Deshabilitar desde la app, sin tocar servidores entre medias.
+ *    (Cierre confirmado el mismo día, rondas 11–14: habilitar,
+ *    deshabilitar, eliminar —204— y la nota de CUENTA, todo en vivo.)
+ *  - v0.9.0: se cierra la parte WEB de la app (orden de Gennis:
+ *    primero todo lo de la web, después lo local). NUEVO: botón
+ *    «+ Crear» en Cuentas y en Túneles. Crear cuenta = POST
+ *    documentado a la colección de usuarios con los campos del
+ *    formulario web (usuario, contraseña inicial, alias, telegram,
+ *    zona, notas, acceso habilitado). Crear túnel = POST documentado
+ *    a la colección de túneles (propietario, nombre interno, nombre
+ *    para el usuario, zona, protocolo WireGuard, pago manual,
+ *    notas); el servidor se asigna solo y se cambia después, como
+ *    manda la práctica de Gennis. Y «Restablecer contraseña» en el
+ *    detalle de la cuenta (POST documentado …/reset-password/).
+ *    Todo con el patrón seguro: un intento por toque, la respuesta
+ *    entera en Intentos, recarga real al éxito. La prueba va sobre
+ *    entidades desechables identificables; el DELETE de CUENTAS no
+ *    se construye (la documentación dice que es en CASCADE).
+ *  - v0.9.1: con la evidencia de la ronda 15 (ver API-INSPECTION.md):
+ *    CREAR CUENTA quedó confirmado tal cual (201, id 278). Crear
+ *    túnel gana (1) validación de name_for_user ≤ 20 caracteres —
+ *    el panel lo rechazó con ese detalle —, (2) selector de
+ *    «Servidor inicial» que envía el campo «host»: sin zona ni
+ *    host el panel respondió «Host no resuelto», y al elegir
+ *    propietario la zona de su cuenta se hereda si trae id; y
+ *    Restablecer contraseña gana el campo de contraseña nueva:
+ *    el endpoint exige {"password"} (no genera una), así que la
+ *    pone el admin en la propia hoja.
+ *  - v0.9.2: crear túnel y reset CONFIRMADOS en la ronda 16
+ *    (túnel 560 creado con host=49 → 201; reset → 200 «Contraseña
+ *    actualizada correctamente.»). La ronda enseñó además que la
+ *    zona sola NO resuelve el host y que el nombre interno solo
+ *    admite letras, números y guiones (un 500 lo rechazó): el
+ *    formulario ahora valida ambas cosas antes de enviar. Con
+ *    esto la parte WEB queda cerrada al completo; sigue lo LOCAL.
+ *  - v0.9.3: AUTOMÁTICO y LOTES, con el mecanismo leído del propio
+ *    código JS del panel (ronda 17, a petición de Gennis): el
+ *    automático de la web es la bandera «is_auto_generated» — en
+ *    ese modo el formulario web NO envía host (por eso omitir el
+ *    host sin la bandera dio «Host no resuelto»); en manual envía
+ *    el host elegido. El formulario individual replica eso tal
+ *    cual (y añade status:"active", como la web). Y selector de
+ *    modo «Un túnel / Por lotes»: el lote hace POST a la ruta
+ *    documentada bulk-create con el cuerpo del formulario web
+ *    ({user, count, protocol, status, manual_payment:true,
+ *    name_prefix, notes} + zone + host solo en manual); cantidad
+ *    2–50 según la SPEC y el panel enumera desde el nombre base.
+ *  - v0.9.5: pedidos de Gennis tras la ronda 20 — (1) el formulario
+ *    de crear nace en AUTOMÁTICO y desaparece la opción «sin
+ *    servidor elegido» del selector; (2) el selector de propietario
+ *    gana BUSCADOR por usuario o alias; (3) el formulario de lote
+ *    muestra por fin su campo de nota (existía en el estado y se
+ *    enviaba, pero nunca se añadió a la vista) rotulado «Nota para
+ *    todos los túneles del lote»; (4) el pool de servidores para
+ *    crear pasa a ser la LISTA DEL PANEL (endpoint por túnel, en
+ *    caché): la ronda 20 demostró que el respaldo «en uso» mezcla
+ *    otro registro — eligió el id 17 «S2-Cuba» y la creación lo
+ *    rechazó («no pertenece a las zonas asignadas a este
+ *    reseller») —; el respaldo se mantiene solo si la lista aún no
+ *    llegó, y el registro anota qué pool se usó.
+ *  - v0.9.4: ronda 19 — el AUTOMÁTICO individual quedó confirmado
+ *    (túnel 561: el panel asignó solo S1-CUBA) y los LOTES con
+ *    servidor manual también (201: «lote-1» y «lote-2» en
+ *    S1-ATLANTA). Pero el automático de LOTES está roto EN EL
+ *    PANEL: bulk-create sin host devuelve su error interno
+ *    QuerySet, con y sin zona (la web manda el mismo cuerpo: es
+ *    fallo del backend). Arreglo del lado de la app: en el lote,
+ *    «Automático» lo resuelve la propia app eligiendo el
+ *    servidor con menos túneles entre los cargados y enviándolo
+ *    explícito, rotulado como lo que es en el formulario y en el
+ *    registro. El automático individual no se toca (es el del
+ *    panel y funciona).
  *
  * Cero datos simulados: cada número del Home se deriva de una respuesta real
  * o se muestra como «—»/«sin datos», con el porqué en el Diagnóstico API.
@@ -755,18 +854,31 @@ public class MainActivity extends Activity {
                                         String[] filterLabels,
                                         final FilterCallback onFilter,
                                         final QueryCallback onQuery,
-                                        Button[][] btnsOut, LinearLayout[] listOut) {
+                                        Button[][] btnsOut, LinearLayout[] listOut,
+                                        final Runnable createAction) {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
         header.setPadding(dp(16), dp(18), dp(16), dp(6));
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
         TextView tvTitle = new TextView(this);
         tvTitle.setText(title);
         tvTitle.setTextColor(TEXT);
         tvTitle.setTextSize(20);
         tvTitle.setTypeface(Typeface.DEFAULT_BOLD);
-        header.addView(tvTitle);
+        titleRow.addView(tvTitle, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        if (createAction != null) {
+            Button btnCreate = makeButton("+ Crear");
+            btnCreate.setTextSize(12);
+            btnCreate.setPadding(dp(12), dp(7), dp(12), dp(7));
+            btnCreate.setOnClickListener(v -> createAction.run());
+            titleRow.addView(btnCreate);
+        }
+        header.addView(titleRow);
         EditText search = makeSearch(searchHint);
         LinearLayout.LayoutParams sLp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -821,7 +933,8 @@ public class MainActivity extends Activity {
                     accountsQuery = q;
                     renderAccounts();
                 },
-                btnsOut, listOut);
+                btnsOut, listOut,
+                () -> openCreateAccount(new NewAccountForm()));
         accountsFilterBtns = btnsOut[0];
         accountsList = listOut[0];
         parent.addView(accountsContainer, new LinearLayout.LayoutParams(
@@ -842,7 +955,8 @@ public class MainActivity extends Activity {
                     tunnelsQuery = q;
                     renderTunnels();
                 },
-                btnsOut, listOut);
+                btnsOut, listOut,
+                () -> openCreateTunnel(new NewTunnelForm()));
         tunnelsFilterBtns = btnsOut[0];
         tunnelsList = listOut[0];
         parent.addView(tunnelsContainer, new LinearLayout.LayoutParams(
@@ -1836,6 +1950,11 @@ public class MainActivity extends Activity {
             LinearLayout.LayoutParams nl = fullWidthLp();
             nl.topMargin = dp(14);
             detailBody.addView(btnNote, nl);
+            Button btnReset = makeButton("Restablecer contraseña");
+            btnReset.setOnClickListener(v -> openResetPassword(fu, userId));
+            LinearLayout.LayoutParams rl = fullWidthLp();
+            rl.topMargin = dp(8);
+            detailBody.addView(btnReset, rl);
         }
         showDetail();
     }
@@ -3903,225 +4022,50 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Deshabilitar/Habilitar — v0.8.5, guiado por la PROPIA API.
+     * Deshabilitar/Habilitar — v0.8.8: por {status}, EL MECANISMO.
      *
-     * Historial: {status:"disabled"} (ronda 4) y {is_active:false}
-     * (ronda 6, 2026-10-31 11:56 sobre Diego) devolvieron 200 SIN
-     * cambiar nada — el túnel siguió «active» con disabled_date null:
-     * ambos campos son de salida o ajenos al serializer. En vez de
-     * seguir adivinando nombres, al tocar el botón la app primero le
-     * pregunta a la API su esquema con OPTIONS (lectura de metadatos:
-     * el objeto «actions» declara los campos ESCRIBIBLES del PATCH,
-     * su tipo, si son de solo lectura y sus valores posibles), elige
-     * el campo de estado que el esquema declare escribible y envía
-     * UNA sola escritura con él. El esquema entero queda en Intentos
-     * («Esquema de estado del túnel»). Si el esquema no declara
-     * ningún campo de estado escribible, NO se envía nada y la hoja
-     * lo dice: deshabilitar usaría otra vía, no este PATCH.
-     * Tras la escritura, la verificación puntual (doWrite →
-     * verifyTunnelNow) confirma si el estado quedó como se pidió.
+     * El «dif de la web» lo resolvió (ronda 10, 2026-10-31 14:29):
+     * al apagar el 558 con el interruptor del panel, el objeto pasó
+     * a status="disabled" CON disabled_date puesta POR EL SERVIDOR
+     * (la hora exacta del guardado web). Es decir: disabled_date
+     * es un campo de SALIDA que el backend rellena al cambiar el
+     * estado — por eso escribirlo desde la app se ignoró siempre
+     * (rondas 8/9) — y el campo que SÍ se escribe es «status»: la
+     * prueba es el 400 de la ronda 7 («inactive» no es una elección
+     * válida): un campo de solo lectura no valida opciones al
+     * escribir, se ignora en silencio. Vocabulario: active / grace
+     * / disabled / expired. Reinterpretación de la ronda 4: el
+     * {"status":"disabled"} de la 0.8.1 (200, 11:13:34) casi
+     * seguro SÍ deshabilitó a Diego, y el cambio de servidor de las
+     * 11:15:36 (reassign-host = reaprovisiona) lo reactivó antes de
+     * la verificación del panel de las 11:17 — el veredicto «no se
+     * aplicó» queda corregido: no hubo ninguna lectura entre la
+     * escritura y el reaprovisionamiento que lo desmintiera.
+     * {is_active:false} (ronda 6) sí fue un no-op genuino: ese
+     * campo es del USUARIO, no del túnel. La v0.8.8 escribe
+     * {"status":"disabled"} / {"status":"active"} y la verificación
+     * puntual confirma (la respuesta trae status y la disabled_date
+     * que el servidor haya puesto o limpiado).
      */
     private void toggleWrite(final long tunnelId, final boolean enable) {
-        if (actBusy) return;
-        actBusy = true;
-        actPrimaryBtn.setEnabled(false);
-        actExtraBtn.setEnabled(false);
-        actCancelBtn.setEnabled(false);
-        actError.setVisibility(View.GONE);
-        actStatus.setText("Preguntando a la API cómo se cambia el estado…");
-        actStatus.setVisibility(View.VISIBLE);
-        final String url = PanelConfig.tunnelDetailUrl(tunnelId);
-        exec.execute(() -> {
-            ApiClient.Result ro = new ApiClient(store).rawOptions(url);
-            JSONObject patch = (ro.error == null && ro.body != null)
-                    ? patchActionsOf(ro.body) : null;
-            String summary;
-            if (ro.error != null) {
-                summary = "sin respuesta: " + ro.error;
-            } else if (ro.code < 200 || ro.code >= 300) {
-                summary = "HTTP " + ro.code + " · "
-                        + ApiDiag.scrub(ApiDiag.truncate(
-                                ro.body != null ? ro.body : "(sin cuerpo)", 300));
-            } else {
-                summary = summarizePatchActions(ro.body, patch);
-            }
-            ApiDiag.add("Esquema de estado del túnel", "OPTIONS", url,
-                    ro.code, ro.ms, summary);
-            final String[] choice = chooseTogglePayload(patch, enable);
-            final boolean fAuth = ro.authFailed;
-            handler.post(() -> {
-                actBusy = false;
-                if (fAuth) {
-                    closeAct();
-                    closeMenu();
-                    abortIfAuthFailed(true);
-                    return;
-                }
-                if (choice == null) {
-                    actPrimaryBtn.setEnabled(true);
-                    actExtraBtn.setEnabled(true);
-                    actCancelBtn.setEnabled(true);
-                    actShowError("La API no declara ningún campo de estado "
-                            + "escribible en su esquema (la respuesta del "
-                            + "OPTIONS está en el Diagnóstico). No se envió "
-                            + "ningún cambio.");
-                    return;
-                }
-                doWrite(enable ? "Escritura — habilitar túnel"
-                                : "Escritura — deshabilitar túnel",
-                        "PATCH", url, choice[0],
-                        enable ? "Túnel habilitado" : "Túnel deshabilitado",
-                        true, "campo según el esquema OPTIONS: " + choice[1],
-                        false, enable ? 1 : 0, false);
-            });
-        });
-    }
-
-    /** Objeto «actions.PATCH» (o PUT) del cuerpo de un OPTIONS; null si no viene. */
-    private JSONObject patchActionsOf(String body) {
-        Object root = JsonHelp.parse(body);
-        if (!(root instanceof JSONObject)) return null;
-        JSONObject actions = ((JSONObject) root).optJSONObject("actions");
-        if (actions == null) return null;
-        JSONObject patch = actions.optJSONObject("PATCH");
-        return patch != null ? patch : actions.optJSONObject("PUT");
-    }
-
-    /** Resumen legible del esquema PATCH para el Diagnóstico (campos y opciones). */
-    private String summarizePatchActions(String body, JSONObject patch) {
-        Object root = JsonHelp.parse(body);
-        if (!(root instanceof JSONObject)) return "el cuerpo no es un objeto JSON";
-        if (patch == null) {
-            return "sin objeto «actions» con PATCH/PUT · claves de la raíz: {"
-                    + JsonHelp.keyList((JSONObject) root) + "}";
-        }
-        StringBuilder sb = new StringBuilder("campos PATCH: ");
-        Iterator<String> it = patch.keys();
-        boolean first = true;
-        while (it.hasNext()) {
-            String name = it.next();
-            JSONObject f = patch.optJSONObject(name);
-            if (!first) sb.append(" · ");
-            first = false;
-            sb.append(name);
-            if (f != null) {
-                sb.append("(").append(f.optString("type", "?"));
-                if (f.optBoolean("read_only", false)) sb.append(", solo lectura");
-                List<String> choices = choiceValues(f);
-                if (!choices.isEmpty()) {
-                    sb.append(", opciones: ");
-                    for (int i = 0; i < choices.size(); i++) {
-                        if (i > 0) sb.append("/");
-                        sb.append(choices.get(i));
-                    }
-                }
-                sb.append(")");
-            }
-            if (sb.length() > 1400) {
-                sb.append("…");
-                break;
-            }
-        }
-        return sb.toString();
-    }
-
-    /** Valores «value» de las opciones (choices) de un campo del esquema. */
-    private List<String> choiceValues(JSONObject field) {
-        List<String> out = new ArrayList<>();
-        JSONArray choices = field.optJSONArray("choices");
-        if (choices == null) return out;
-        for (int i = 0; i < choices.length(); i++) {
-            Object c = choices.opt(i);
-            if (c instanceof JSONObject) {
-                Object v = ((JSONObject) c).opt("value");
-                if (v != null && v != JSONObject.NULL) out.add(String.valueOf(v));
-            } else if (c != null && c != JSONObject.NULL) {
-                out.add(String.valueOf(c));
-            }
-        }
-        return out;
-    }
-
-    private String pickChoice(List<String> choices, String[] wanted) {
-        for (String w : wanted) {
-            for (String c : choices) {
-                if (w.equalsIgnoreCase(c)) return c;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Elige {cuerpo, nota} de la escritura de estado SEGÚN EL ESQUEMA:
-     * (1) un booleano escribible de nombre conocido (is_active,
-     * enabled, is_enabled, active; is_disabled invertido); (2) un
-     * status/state escribible, con el valor de sus opciones si las
-     * declara; (3) un disabled_date escribible (fecha actual / null).
-     * Sin esquema (OPTIONS falló): la única carta sin probar de
-     * status, «inactive». Sin candidato en el esquema: null (no se
-     * envía nada).
-     */
-    private String[] chooseTogglePayload(JSONObject patch, boolean enable) {
+        final String body;
         try {
-            if (patch == null) {
-                JSONObject b = new JSONObject().put("status",
-                        enable ? "active" : "inactive");
-                return new String[]{b.toString(),
-                        "sin esquema OPTIONS utilizable: status="
-                                + (enable ? "active" : "inactive")};
-            }
-            for (String n : new String[]{"is_active", "enabled", "is_enabled", "active"}) {
-                JSONObject f = patch.optJSONObject(n);
-                if (f != null && !f.optBoolean("read_only", false)
-                        && "boolean".equals(f.optString("type"))) {
-                    JSONObject b = new JSONObject().put(n, enable);
-                    return new String[]{b.toString(),
-                            n + "=" + enable + " (booleano del esquema)"};
-                }
-            }
-            JSONObject fDis = patch.optJSONObject("is_disabled");
-            if (fDis != null && !fDis.optBoolean("read_only", false)
-                    && "boolean".equals(fDis.optString("type"))) {
-                JSONObject b = new JSONObject().put("is_disabled", !enable);
-                return new String[]{b.toString(),
-                        "is_disabled=" + (!enable) + " (booleano del esquema)"};
-            }
-            for (String n : new String[]{"status", "state"}) {
-                JSONObject f = patch.optJSONObject(n);
-                if (f != null && !f.optBoolean("read_only", false)) {
-                    List<String> choices = choiceValues(f);
-                    String dv = pickChoice(choices,
-                            new String[]{"disabled", "inactive", "suspended", "off"});
-                    String ev = pickChoice(choices,
-                            new String[]{"active", "enabled", "on", "online"});
-                    if (dv == null) dv = "inactive";
-                    if (ev == null) ev = "active";
-                    JSONObject b = new JSONObject().put(n, enable ? ev : dv);
-                    return new String[]{b.toString(),
-                            n + "=" + (enable ? ev : dv) + " (campo del esquema)"};
-                }
-            }
-            JSONObject fDate = patch.optJSONObject("disabled_date");
-            if (fDate != null && !fDate.optBoolean("read_only", false)) {
-                JSONObject b = new JSONObject();
-                if (enable) b.put("disabled_date", JSONObject.NULL);
-                else b.put("disabled_date", isoNowUtc());
-                return new String[]{b.toString(),
-                        "disabled_date=" + (enable ? "null" : "ahora")
-                                + " (campo del esquema)"};
-            }
+            body = new JSONObject()
+                    .put("status", enable ? "active" : "disabled")
+                    .toString();
         } catch (Exception e) {
-            return null;
+            actShowError("No se pudo preparar el cambio de estado. "
+                    + "No se envió ningún cambio.");
+            return;
         }
-        return null;
-    }
-
-    /** Ahora en UTC, formato ISO («2026-10-31T16:00:00Z»). */
-    private String isoNowUtc() {
-        SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",
-                Locale.US);
-        f.setTimeZone(TimeZone.getTimeZone("UTC"));
-        return f.format(new Date());
+        doWrite(enable ? "Escritura — habilitar túnel"
+                        : "Escritura — deshabilitar túnel",
+                "PATCH", PanelConfig.tunnelDetailUrl(tunnelId), body,
+                enable ? "Túnel habilitado" : "Túnel deshabilitado",
+                true, "campo: status=" + (enable ? "active" : "disabled")
+                        + " · el servidor pone/limpia disabled_date "
+                        + "(dif de la web, ronda 10)",
+                false, enable ? 1 : 0, false);
     }
 
     // ---------------- Editar nota (túnel y cuenta) ----------------
@@ -4178,7 +4122,835 @@ public class MainActivity extends Activity {
         });
     }
 
-    // ---------------- Eliminar túnel (guarda extra; NO probado en esta entrega) ----------------
+    // ---------------- Creación (v0.9.0: cerrar la parte WEB) ----------------
+
+    /** Estado del formulario de cuenta nueva (sobrevive a los selectores). */
+    private static class NewAccountForm {
+        String username = "", password = "", alias = "", telegram = "", notes = "";
+        long zoneId = -1;
+        String zoneName = null;
+        boolean active = true;
+    }
+
+    /** Estado del formulario de túnel nuevo (sobrevive a los selectores). */
+    private static class NewTunnelForm {
+        long ownerId = -1;
+        String ownerName = null;
+        String name = "", nameForUser = "", notes = "";
+        long zoneId = -1;
+        String zoneName = null;
+        long hostId = -1;
+        String hostName = null;
+        // Por defecto AUTOMÁTICO (pedido de Gennis, ronda 20): el
+        // formulario nace en automático hasta que se elige otro.
+        boolean autoHost = true;
+        boolean manual = true;
+        // Por lotes (v0.9.3): nombre base y cantidad; el panel enumera.
+        String basePrefix = "";
+        String countText = "2";
+    }
+
+    private String fieldText(EditText e) {
+        return e.getText() != null ? e.getText().toString().trim() : "";
+    }
+
+    /** Fila interruptor Sí/No para formularios de la hoja de acción. */
+    private void actToggleRow(String label, final boolean[] holder) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(12), 0, 0);
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(TEXT);
+        tv.setTextSize(13);
+        row.addView(tv, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        final Button b = makeButton(holder[0] ? "Sí" : "No");
+        b.setTextSize(12);
+        b.setPadding(dp(16), dp(7), dp(16), dp(7));
+        b.setOnClickListener(v -> {
+            holder[0] = !holder[0];
+            b.setText(holder[0] ? "Sí" : "No");
+        });
+        row.addView(b);
+        actBody.addView(row);
+    }
+
+    /** Botón selector de formulario: muestra la elección actual. */
+    private Button actSelector(String label, String current, View.OnClickListener onTap) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(TEXT2);
+        tv.setTextSize(12);
+        tv.setPadding(0, dp(10), 0, dp(4));
+        actBody.addView(tv);
+        Button b = makeButton(current);
+        LinearLayout.LayoutParams lp = fullWidthLp();
+        actBody.addView(b, lp);
+        b.setOnClickListener(onTap);
+        return b;
+    }
+
+    /** Id de zona de un item, si su «zone» trae uno utilizable. */
+    private Long zoneIdOf(JSONObject u) {
+        if (u == null) return null;
+        Object z = u.opt("zone");
+        if (z instanceof JSONObject) {
+            Object ido = ((JSONObject) z).opt("id");
+            if (ido instanceof Number) return ((Number) ido).longValue();
+        } else if (z instanceof Number) {
+            return ((Number) z).longValue();
+        }
+        return null;
+    }
+
+    /** Zonas con id vistas en las cuentas cargadas: pares {id, nombre}. */
+    private List<Object[]> knownZones() {
+        List<Object[]> out = new ArrayList<>();
+        if (dataUsers == null) return out;
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (int i = 0; i < dataUsers.length(); i++) {
+            JSONObject u = dataUsers.optJSONObject(i);
+            if (u == null) continue;
+            Long zid = zoneIdOf(u);
+            if (zid != null && seen.add(zid)) {
+                String zn = DataHelp.zoneLabel(u);
+                out.add(new Object[]{zid, zn != null ? zn : "Zona #" + zid});
+            }
+        }
+        return out;
+    }
+
+    /** Fila tocable de un selector (tarjeta compacta con título y detalle). */
+    private void pickerRow(String title, String detail, View.OnClickListener onTap) {
+        pickerRowInto(actBody, title, detail, onTap);
+    }
+
+    private void pickerRowInto(LinearLayout box, String title, String detail,
+                               View.OnClickListener onTap) {
+        LinearLayout card = makeCardBox();
+        card.setPadding(dp(14), dp(11), dp(14), dp(11));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(8);
+        card.setLayoutParams(lp);
+        TextView tvT = new TextView(this);
+        tvT.setText(title);
+        tvT.setTextColor(TEXT);
+        tvT.setTextSize(14);
+        tvT.setTypeface(Typeface.DEFAULT_BOLD);
+        card.addView(tvT);
+        if (detail != null) {
+            TextView tvD = new TextView(this);
+            tvD.setText(detail);
+            tvD.setTextColor(TEXT2);
+            tvD.setTextSize(12);
+            tvD.setPadding(0, dp(3), 0, 0);
+            card.addView(tvD);
+        }
+        card.setOnClickListener(onTap);
+        box.addView(card);
+    }
+
+    /**
+     * Selector de propietario (cuentas cargadas) para crear, CON
+     * BUSCADOR (pedido de Gennis, ronda 20: con 60+ cuentas no se
+     * puede ir desplazando). Filtra por usuario o alias al escribir.
+     */
+    private void openOwnerPicker(final NewTunnelForm f, final Runnable back) {
+        openAct("Seleccionar propietario");
+        actPrimaryBtn.setVisibility(View.GONE);
+        setActExtra("← Volver", () -> back.run());
+        if (dataUsers == null || dataUsers.length() == 0) {
+            actText("Las cuentas aún no cargaron. Cierra y vuelve a intentarlo.",
+                    TEXT2, 13);
+            return;
+        }
+        EditText search = makeTextInput("Buscar por usuario o alias…", false);
+        LinearLayout.LayoutParams sl = fullWidthLp();
+        sl.topMargin = dp(4);
+        actBody.addView(search, sl);
+        final LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        actBody.addView(box, fullWidthLp());
+        renderOwnerRows(box, f, back, "");
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(Editable s) {
+                renderOwnerRows(box, f, back, s != null ? s.toString() : "");
+            }
+        });
+    }
+
+    private void renderOwnerRows(LinearLayout box, final NewTunnelForm f,
+                                 final Runnable back, String query) {
+        box.removeAllViews();
+        String q = query.trim().toLowerCase(Locale.ROOT);
+        int shown = 0;
+        for (int i = 0; i < dataUsers.length(); i++) {
+            final JSONObject u = dataUsers.optJSONObject(i);
+            if (u == null) continue;
+            Object ido = u.opt("id");
+            if (!(ido instanceof Number)) continue;
+            final long uid = ((Number) ido).longValue();
+            final String uname = DataHelp.fieldStr(u, "username");
+            if (uname == null) continue;
+            String alias = DataHelp.fieldStr(u, "alias");
+            if (!q.isEmpty()
+                    && !uname.toLowerCase(Locale.ROOT).contains(q)
+                    && (alias == null
+                            || !alias.toLowerCase(Locale.ROOT).contains(q))) {
+                continue;
+            }
+            Object tc = u.opt("tunnels_count");
+            String detail = (alias != null ? "Alias: " + alias : null);
+            if (tc instanceof Number) {
+                detail = (detail != null ? detail + " · " : "")
+                        + ((Number) tc).intValue() + " túneles";
+            }
+            shown++;
+            pickerRowInto(box, uname, detail, v -> {
+                f.ownerId = uid;
+                f.ownerName = uname;
+                // Si el formulario aún no tiene zona y la cuenta sí, se
+                // hereda la suya: es de donde el panel resuelve el host.
+                if (f.zoneId < 0) {
+                    Long zid = zoneIdOf(u);
+                    if (zid != null) {
+                        f.zoneId = zid;
+                        String zn = DataHelp.zoneLabel(u);
+                        f.zoneName = zn != null ? zn : "Zona #" + zid;
+                    }
+                }
+                back.run();
+            });
+        }
+        if (shown == 0) {
+            TextView tv = new TextView(this);
+            tv.setText("Sin cuentas que coincidan con la búsqueda.");
+            tv.setTextColor(TEXT2);
+            tv.setTextSize(13);
+            tv.setPadding(0, dp(10), 0, 0);
+            box.addView(tv);
+        }
+    }
+
+    /** Selector de zona para los formularios de creación. */
+    private void openZonePicker(final long[] idHolder, final String[] nameHolder,
+                                final Runnable back) {
+        openAct("Seleccionar zona");
+        actPrimaryBtn.setVisibility(View.GONE);
+        setActExtra("← Volver", () -> back.run());
+        pickerRow("Sin zona", "No se envía el campo: el panel aplica su criterio.",
+                v -> {
+                    idHolder[0] = -1;
+                    nameHolder[0] = null;
+                    back.run();
+                });
+        List<Object[]> zones = knownZones();
+        if (zones.isEmpty()) {
+            actText("En las cuentas cargadas no se ven zonas con id; por eso "
+                    + "solo se ofrece «Sin zona».", TEXT2, 12);
+        }
+        for (final Object[] z : zones) {
+            pickerRow((String) z[1], "Zona #" + z[0], v -> {
+                idHolder[0] = (Long) z[0];
+                nameHolder[0] = (String) z[1];
+                back.run();
+            });
+        }
+    }
+
+    /** Añade a la hoja un campo ya creado, con su etiqueta. */
+    private void actAddField(String label, EditText e) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        tv.setTextColor(TEXT2);
+        tv.setTextSize(12);
+        tv.setPadding(0, dp(10), 0, dp(4));
+        actBody.addView(tv);
+        actBody.addView(e, fullWidthLp());
+    }
+
+    /**
+     * Selector de servidor inicial para el túnel nuevo (v0.9.1): la
+     * ronda 15 respondió «Host no resuelto» a una creación sin zona ni
+     * host. La lista sale de los servidores EN USO en los túneles
+     * cargados (los mismos del respaldo de «Cambiar de servidor»);
+     * elegir uno envía el campo «host», el que el PATCH del detalle
+     * ya aceptó en la ronda 6.
+     */
+    private void openCreateHostPicker(final NewTunnelForm f, final Runnable back) {
+        openAct("Servidor inicial");
+        actPrimaryBtn.setVisibility(View.GONE);
+        setActExtra("← Volver", () -> back.run());
+        pickerRow("Automático (como la web)",
+                "En el túnel individual lo asigna el panel "
+                        + "(«is_auto_generated», ronda 17). En lotes lo "
+                        + "elige la app: el automático de lotes del "
+                        + "panel está roto (ronda 19).",
+                v -> {
+                    f.autoHost = true;
+                    f.hostId = -1;
+                    f.hostName = null;
+                    back.run();
+                });
+        List<HostEntry> hosts = createHostPool();
+        if (hosts.isEmpty()) {
+            actText("No se ven servidores en los túneles cargados.", TEXT2, 12);
+            return;
+        }
+        for (final HostEntry h : hosts) {
+            if (h.id == null || h.name == null) continue;
+            final long hid;
+            if (h.id instanceof Number) {
+                hid = ((Number) h.id).longValue();
+            } else {
+                try {
+                    hid = Long.parseLong(String.valueOf(h.id).trim());
+                } catch (Exception e) {
+                    continue;
+                }
+            }
+            pickerRow(h.name, h.status, v -> {
+                f.autoHost = false;
+                f.hostId = hid;
+                f.hostName = h.name;
+                back.run();
+            });
+        }
+    }
+
+    /** Formulario «Crear cuenta» — POST documentado a la colección de usuarios. */
+    private void openCreateAccount(final NewAccountForm f) {
+        openAct("Crear cuenta");
+        final long[] zid = {f.zoneId};
+        final String[] zname = {f.zoneName};
+        final boolean[] act = {f.active};
+        final EditText inUser = makeTextInput("Nombre de usuario", false);
+        inUser.setText(f.username);
+        final EditText inPass = makeTextInput("Contraseña inicial", false);
+        inPass.setText(f.password);
+        inPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        final EditText inAlias = makeTextInput("Alias (opcional)", false);
+        inAlias.setText(f.alias);
+        final EditText inTg = makeTextInput("Usuario de Telegram (opcional)", false);
+        inTg.setText(f.telegram);
+        final EditText inNotes = makeTextInput("Notas (opcional)", true);
+        inNotes.setText(f.notes);
+        final Runnable capture = () -> {
+            f.username = fieldText(inUser);
+            f.password = inPass.getText() != null ? inPass.getText().toString() : "";
+            f.alias = fieldText(inAlias);
+            f.telegram = fieldText(inTg);
+            f.notes = fieldText(inNotes);
+            f.zoneId = zid[0];
+            f.zoneName = zname[0];
+            f.active = act[0];
+        };
+        actAddField("Usuario *", inUser);
+        actAddField("Contraseña inicial *", inPass);
+        actAddField("Alias", inAlias);
+        actAddField("Telegram", inTg);
+        actSelector("Zona", f.zoneName != null ? f.zoneName : "Sin zona",
+                v -> {
+                    capture.run();
+                    openZonePicker(zid, zname, () -> {
+                        f.zoneId = zid[0];
+                        f.zoneName = zname[0];
+                        openCreateAccount(f);
+                    });
+                });
+        actToggleRow("Acceso habilitado", act);
+        actAddField("Notas internas", inNotes);
+        actText("Se crea con la ruta documentada del panel (POST a la "
+                + "colección de usuarios), con los campos del formulario "
+                + "web de creación. La respuesta del servidor queda entera "
+                + "en el Diagnóstico.", TEXT2, 12);
+        setActPrimary("Crear cuenta", () -> {
+            capture.run();
+            if (f.username.isEmpty() || f.password.isEmpty()) {
+                actShowError("Faltan el usuario y la contraseña inicial.");
+                return;
+            }
+            String body;
+            try {
+                JSONObject o = new JSONObject();
+                o.put("username", f.username);
+                o.put("password", f.password);
+                if (!f.alias.isEmpty()) o.put("alias", f.alias);
+                if (!f.telegram.isEmpty()) o.put("telegram_username", f.telegram);
+                if (f.zoneId > 0) o.put("zone", f.zoneId);
+                if (!f.notes.isEmpty()) o.put("notes", f.notes);
+                o.put("is_active", f.active);
+                body = o.toString();
+            } catch (Exception e) {
+                actShowError("No se pudo construir la petición.");
+                return;
+            }
+            doWrite("Escritura — crear cuenta", "POST", PanelConfig.USERS_URL,
+                    body, "Cuenta creada", false,
+                    "ruta documentada: POST /api/manager/v1/accounts/users/ · "
+                            + "campos del formulario web de creación",
+                    false, null, true);
+        });
+    }
+
+    /** Fila de modo «Un túnel / Por lotes» de los formularios de creación. */
+    private void actModeRow(boolean batchActive, final Runnable toSingle,
+                            final Runnable toBatch) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(4), 0, dp(2));
+        Button b1 = makeButton("Un túnel");
+        Button b2 = makeButton("Por lotes");
+        styleModeBtn(b1, !batchActive);
+        styleModeBtn(b2, batchActive);
+        b1.setOnClickListener(v -> { if (batchActive) toSingle.run(); });
+        b2.setOnClickListener(v -> { if (!batchActive) toBatch.run(); });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        row.addView(b1, lp);
+        LinearLayout.LayoutParams lp2 = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        lp2.leftMargin = dp(8);
+        row.addView(b2, lp2);
+        actBody.addView(row);
+    }
+
+    private void styleModeBtn(Button b, boolean selected) {
+        b.setTextSize(12);
+        b.setTextColor(selected ? CYAN : TEXT2);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(CARD);
+        bg.setCornerRadius(dp(10));
+        bg.setStroke(dp(1), selected ? CYAN : BORDER);
+        b.setBackground(bg);
+        b.setPadding(dp(10), dp(8), dp(10), dp(8));
+    }
+
+    /** Formulario «Crear túnel» — POST documentado a la colección de túneles. */
+    private void openCreateTunnel(final NewTunnelForm f) {
+        openAct("Crear túnel");
+        ensurePanelHosts();
+        final long[] zid = {f.zoneId};
+        final String[] zname = {f.zoneName};
+        final boolean[] man = {f.manual};
+        final EditText inName = makeTextInput("Nombre del túnel", false);
+        inName.setText(f.name);
+        final EditText inNfu = makeTextInput("Nombre visible (opcional)", false);
+        inNfu.setText(f.nameForUser);
+        final EditText inNotes = makeTextInput("Notas (opcional)", true);
+        inNotes.setText(f.notes);
+        final Runnable capture = () -> {
+            f.name = fieldText(inName);
+            f.nameForUser = fieldText(inNfu);
+            f.notes = fieldText(inNotes);
+            f.zoneId = zid[0];
+            f.zoneName = zname[0];
+            f.manual = man[0];
+        };
+        actModeRow(false, () -> {}, () -> {
+            capture.run();
+            openCreateBatch(f);
+        });
+        actSelector("Propietario *",
+                f.ownerName != null ? f.ownerName : "Seleccionar propietario…",
+                v -> {
+                    capture.run();
+                    openOwnerPicker(f, () -> openCreateTunnel(f));
+                });
+        actAddField("Nombre interno * (letras, números y guiones)", inName);
+        actAddField("Nombre para el usuario (máx. 20)", inNfu);
+        actSelector("Zona", f.zoneName != null ? f.zoneName : "Sin zona",
+                v -> {
+                    capture.run();
+                    openZonePicker(zid, zname, () -> {
+                        f.zoneId = zid[0];
+                        f.zoneName = zname[0];
+                        openCreateTunnel(f);
+                    });
+                });
+        actSelector("Servidor inicial",
+                f.autoHost ? "Automático (como la web)"
+                        : f.hostName != null ? f.hostName : "Seleccionar servidor…",
+                v -> {
+                    capture.run();
+                    openCreateHostPicker(f, () -> openCreateTunnel(f));
+                });
+        actToggleRow("Pago manual", man);
+        actAddField("Notas administrativas", inNotes);
+        actText("El servidor inicial es obligatorio salvo en modo "
+                + "Automático: sin él (y sin la bandera de automático) "
+                + "el panel responde «Host no resuelto», y la zona sola "
+                + "no basta (rondas 15–16). Protocolo: WireGuard. La "
+                + "respuesta del servidor queda entera en el "
+                + "Diagnóstico.", TEXT2, 12);
+        setActPrimary("Crear túnel", () -> {
+            capture.run();
+            if (f.ownerId < 0) {
+                actShowError("Selecciona el propietario del túnel.");
+                return;
+            }
+            if (f.name.isEmpty()) {
+                actShowError("Falta el nombre interno del túnel.");
+                return;
+            }
+            if (!f.name.matches("[A-Za-z0-9-]+")) {
+                actShowError("El nombre solo puede contener letras, "
+                        + "números y guiones (sin espacios ni guiones "
+                        + "bajos): el panel lo rechaza (ronda 16).");
+                return;
+            }
+            if (!f.autoHost && f.hostId < 0) {
+                actShowError("Elige el servidor inicial (o Automático): "
+                        + "sin él el panel responde «Host no resuelto» y "
+                        + "la zona sola no basta (ronda 16).");
+                return;
+            }
+            if (f.nameForUser.length() > 20) {
+                actShowError("El nombre para el usuario pasa de 20 "
+                        + "caracteres: el panel lo rechaza (ronda 15).");
+                return;
+            }
+            String body;
+            try {
+                JSONObject o = new JSONObject();
+                o.put("user", f.ownerId);
+                o.put("name", f.name);
+                o.put("protocol", "wireguard");
+                o.put("manual_payment", f.manual);
+                if (!f.nameForUser.isEmpty()) o.put("name_for_user", f.nameForUser);
+                if (f.zoneId > 0) o.put("zone", f.zoneId);
+                // Como la web (su código, ronda 17): en automático se
+                // envía is_auto_generated=true y NINGÚN host; en manual,
+                // is_auto_generated=false y el host elegido.
+                o.put("is_auto_generated", f.autoHost);
+                o.put("status", "active");
+                if (!f.autoHost && f.hostId > 0) o.put("host", f.hostId);
+                if (!f.notes.isEmpty()) o.put("notes", f.notes);
+                body = o.toString();
+            } catch (Exception e) {
+                actShowError("No se pudo construir la petición.");
+                return;
+            }
+            doWrite("Escritura — crear túnel", "POST",
+                    PanelConfig.TUNNELS_CREATE_URL, body, "Túnel creado", false,
+                    "ruta documentada: POST /api/v1/tunnels/ · ronda 15: sin "
+                            + "zona ni host el panel responde «Host no "
+                            + "resuelto»; «host» es el campo que el PATCH del "
+                            + "detalle aceptó en la ronda 6"
+                            + (f.autoHost
+                                    ? " · modo Automático: "
+                                            + "is_auto_generated=true y sin "
+                                            + "host, como la web (su código, "
+                                            + "ronda 17); omitirlo sin la "
+                                            + "bandera dio «Host no resuelto»"
+                                    : f.hostName != null
+                                            ? " · servidor elegido: " + f.hostName
+                                                    + " (id " + f.hostId + ")"
+                                            : " · sin servidor elegido"),
+                    false, null, true);
+        });
+    }
+
+    /**
+     * Lista de servidores DEL PANEL en caché (la del endpoint por
+     * túnel): es el pool VÁLIDO para crear. El respaldo «en uso»
+     * mezcla otro registro — la ronda 20 eligió el id 17 «S2-Cuba»
+     * y la creación lo rechazó: «El host seleccionado no pertenece
+     * a las zonas asignadas a este reseller». Se pide una vez, con
+     * el primer túnel cargado como referencia.
+     */
+    private List<HostEntry> panelHostsCache;
+
+    private void ensurePanelHosts() {
+        if (panelHostsCache != null || dataTunnels == null) return;
+        long refId = -1;
+        for (int i = 0; i < dataTunnels.length(); i++) {
+            JSONObject t = dataTunnels.optJSONObject(i);
+            if (t == null) continue;
+            Object ido = t.opt("id");
+            if (ido instanceof Number) {
+                refId = ((Number) ido).longValue();
+                break;
+            }
+        }
+        if (refId < 0) return;
+        final long ref = refId;
+        exec.execute(() -> {
+            ApiClient api = new ApiClient(store);
+            ApiClient.Result r = api.getWithPairs(
+                    "Servidores del panel (crear)", PanelConfig.hostsUrl(ref));
+            if (r.error == null && r.code >= 200 && r.code < 300
+                    && r.body != null) {
+                JSONArray items = JsonHelp.itemsArray(JsonHelp.parse(r.body));
+                if (items != null && items.length() > 0) {
+                    final List<HostEntry> parsed = new ArrayList<>();
+                    for (int i = 0; i < items.length(); i++) {
+                        HostEntry h = parseHost(items.opt(i));
+                        if (h != null && hostIdLong(h) >= 0) parsed.add(h);
+                    }
+                    if (!parsed.isEmpty()) {
+                        handler.post(() -> panelHostsCache = parsed);
+                    }
+                }
+            }
+        });
+    }
+
+    /** Pool para crear: la lista del panel si ya llegó; si no, el respaldo. */
+    private List<HostEntry> createHostPool() {
+        if (panelHostsCache != null && !panelHostsCache.isEmpty()) {
+            return panelHostsCache;
+        }
+        return hostsFromTunnels();
+    }
+
+    /** Id numérico de un HostEntry, o -1 si no se puede saber. */
+    private long hostIdLong(HostEntry h) {
+        if (h == null || h.id == null) return -1;
+        if (h.id instanceof Number) return ((Number) h.id).longValue();
+        try {
+            return Long.parseLong(String.valueOf(h.id).trim());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Servidor con menos túneles entre los cargados: es el
+     * «automático» de la app para los LOTES, porque el automático
+     * del bulk-create del panel está roto (error QuerySet, ronda
+     * 19). Cuenta los túneles cargados por id de host.
+     */
+    private HostEntry leastLoadedHost() {
+        List<HostEntry> hosts = createHostPool();
+        if (hosts.isEmpty()) return null;
+        java.util.Map<String, Integer> counts = new java.util.HashMap<>();
+        if (dataTunnels != null) {
+            for (int i = 0; i < dataTunnels.length(); i++) {
+                JSONObject t = dataTunnels.optJSONObject(i);
+                if (t == null) continue;
+                Object hv = t.opt("host");
+                if (hv instanceof JSONObject) {
+                    Object ido = ((JSONObject) hv).opt("id");
+                    if (ido != null && ido != JSONObject.NULL) {
+                        String k = String.valueOf(ido);
+                        Integer c = counts.get(k);
+                        counts.put(k, c == null ? 1 : c + 1);
+                    }
+                }
+            }
+        }
+        HostEntry best = null;
+        int bestCount = Integer.MAX_VALUE;
+        for (HostEntry h : hosts) {
+            if (hostIdLong(h) < 0) continue;
+            Integer c = counts.get(String.valueOf(h.id));
+            int n = c == null ? 0 : c;
+            if (n < bestCount) {
+                bestCount = n;
+                best = h;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Formulario «Crear por lotes» (v0.9.3) — POST documentado a
+     * /api/v1/tunnels/bulk-create/. El cuerpo replica el del
+     * formulario web (leído de su propio código, ronda 17):
+     * {user, count, protocol, status:"active", manual_payment:true,
+     * name_prefix, notes} + zone si se elige + host SOLO en modo
+     * manual (en automático no se envía host). La SPEC fija la
+     * cantidad entre 2 y 50; el panel enumera desde el nombre base.
+     */
+    private void openCreateBatch(final NewTunnelForm f) {
+        openAct("Crear túneles por lotes");
+        ensurePanelHosts();
+        final long[] zid = {f.zoneId};
+        final String[] zname = {f.zoneName};
+        final EditText inPrefix = makeTextInput("Nombre base", false);
+        inPrefix.setText(f.basePrefix);
+        final EditText inCount = makeTextInput("Cantidad (2–50)", false);
+        inCount.setText(f.countText);
+        inCount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        final EditText inNotes = makeTextInput("Notas (opcional)", true);
+        inNotes.setText(f.notes);
+        final Runnable capture = () -> {
+            f.basePrefix = fieldText(inPrefix);
+            f.countText = fieldText(inCount);
+            f.notes = fieldText(inNotes);
+            f.zoneId = zid[0];
+            f.zoneName = zname[0];
+        };
+        actModeRow(true,
+                () -> {
+                    capture.run();
+                    openCreateTunnel(f);
+                },
+                () -> {});
+        actSelector("Propietario *",
+                f.ownerName != null ? f.ownerName : "Seleccionar propietario…",
+                v -> {
+                    capture.run();
+                    openOwnerPicker(f, () -> openCreateBatch(f));
+                });
+        actAddField("Nombre base * (letras, números y guiones)", inPrefix);
+        actAddField("Cantidad *", inCount);
+        actSelector("Zona", f.zoneName != null ? f.zoneName : "Sin zona",
+                v -> {
+                    capture.run();
+                    openZonePicker(zid, zname, () -> {
+                        f.zoneId = zid[0];
+                        f.zoneName = zname[0];
+                        openCreateBatch(f);
+                    });
+                });
+        actSelector("Servidor inicial",
+                f.autoHost ? "Automático (como la web)"
+                        : f.hostName != null ? f.hostName : "Seleccionar servidor…",
+                v -> {
+                    capture.run();
+                    openCreateHostPicker(f, () -> openCreateBatch(f));
+                });
+        actAddField("Nota para todos los túneles del lote", inNotes);
+        actText("El lote se crea de una vez, con pago manual, como en "
+                + "la web; el panel enumera los túneles desde el "
+                + "nombre base. En Automático, la app elige el "
+                + "servidor con menos túneles cargados y lo envía: el "
+                + "automático de lotes del panel está roto (su error "
+                + "QuerySet, ronda 19). La respuesta queda entera en "
+                + "el Diagnóstico.", TEXT2, 12);
+        setActPrimary("Crear lote", () -> {
+            capture.run();
+            if (f.ownerId < 0) {
+                actShowError("Selecciona el propietario del lote.");
+                return;
+            }
+            if (f.basePrefix.isEmpty()
+                    || !f.basePrefix.matches("[A-Za-z0-9-]+")) {
+                actShowError("El nombre base solo puede contener "
+                        + "letras, números y guiones (ronda 16).");
+                return;
+            }
+            final int count;
+            try {
+                count = Integer.parseInt(f.countText);
+            } catch (Exception e) {
+                actShowError("La cantidad debe ser un número entre 2 y 50.");
+                return;
+            }
+            if (count < 2 || count > 50) {
+                actShowError("La cantidad debe estar entre 2 y 50.");
+                return;
+            }
+            if (!f.autoHost && f.hostId < 0) {
+                actShowError("Elige el servidor inicial (o Automático): "
+                        + "el lote es de pago manual y sin servidor el "
+                        + "panel no resuelve el host.");
+                return;
+            }
+            // Automático de lote = lo elige la APP (el del panel está
+            // roto, ronda 19): el servidor con menos túneles cargados.
+            long sendHostId = f.hostId;
+            String hostNote;
+            if (f.autoHost) {
+                HostEntry pick = leastLoadedHost();
+                long pid = hostIdLong(pick);
+                if (pick == null || pid < 0) {
+                    actShowError("No se pudo elegir servidor "
+                            + "automáticamente (sin datos de servidores "
+                            + "cargados); elige uno manualmente.");
+                    return;
+                }
+                sendHostId = pid;
+                hostNote = " · automático de la APP: " + pick.name
+                        + " (id " + pid + "), el de menos túneles "
+                        + "cargados"
+                        + (panelHostsCache != null
+                                ? " (pool: lista del panel)"
+                                : " (pool: respaldo en uso)")
+                        + " — el bulk-create del panel en "
+                        + "automático devuelve su error QuerySet "
+                        + "(ronda 19)";
+            } else {
+                hostNote = " · servidor: " + f.hostName
+                        + " (id " + f.hostId + ")";
+            }
+            String body;
+            try {
+                JSONObject o = new JSONObject();
+                o.put("user", f.ownerId);
+                o.put("count", count);
+                o.put("protocol", "wireguard");
+                o.put("status", "active");
+                o.put("manual_payment", true);
+                o.put("name_prefix", f.basePrefix);
+                o.put("notes", f.notes.isEmpty() ? JSONObject.NULL : f.notes);
+                if (f.zoneId > 0) o.put("zone", f.zoneId);
+                if (sendHostId > 0) o.put("host", sendHostId);
+                body = o.toString();
+            } catch (Exception e) {
+                actShowError("No se pudo construir la petición.");
+                return;
+            }
+            doWrite("Escritura — crear túneles por lotes", "POST",
+                    PanelConfig.TUNNELS_BULK_CREATE_URL, body, "Lote creado",
+                    false,
+                    "ruta documentada: POST /api/v1/tunnels/bulk-create/ · "
+                            + "cuerpo como el del formulario web (su "
+                            + "código, ronda 17), con el host siempre "
+                            + "explícito" + hostNote,
+                    false, null, true);
+        });
+    }
+
+    /**
+     * Restablecer la contraseña de una cuenta: POST documentado a
+     * …/accounts/users/<id>/reset-password/. La ronda 15 enseñó que
+     * el endpoint NO genera la contraseña: exige el campo «password»
+     * en el cuerpo — la contraseña nueva la pone el admin aquí, y
+     * después se le pasa al cliente con la plantilla de datos de
+     * acceso. El intento entero queda en el Diagnóstico.
+     */
+    private void openResetPassword(final JSONObject u, final long userId) {
+        final String username = DataHelp.fieldStr(u, "username");
+        openAct("Restablecer contraseña");
+        actRow("Cuenta", username);
+        final EditText inPass = makeTextInput("Contraseña nueva", false);
+        inPass.setInputType(android.text.InputType.TYPE_CLASS_TEXT
+                | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        actAddField("Contraseña nueva *", inPass);
+        actText("La contraseña nueva la pones tú: el panel exige el "
+                + "campo «password» (ronda 15). Tras restablecer, pásala "
+                + "al cliente con la plantilla de datos de acceso.",
+                TEXT2, 12);
+        setActPrimary("Restablecer", () -> {
+            String pw = inPass.getText() != null ? inPass.getText().toString() : "";
+            if (pw.isEmpty()) {
+                actShowError("Escribe la contraseña nueva.");
+                return;
+            }
+            String body;
+            try {
+                body = new JSONObject().put("password", pw).toString();
+            } catch (Exception e) {
+                actShowError("No se pudo construir la petición.");
+                return;
+            }
+            doWrite("Escritura — restablecer contraseña (cuenta)", "POST",
+                    PanelConfig.resetPasswordUrl(userId), body,
+                    "Contraseña restablecida", false,
+                    "cuenta: " + username, false, null, true);
+        });
+    }
+
+    // ---------------- Eliminar túnel (guarda extra; a probar en desechables) ----------------
 
     /**
      * Eliminar queda LISTO pero con guarda extra: hay que ESCRIBIR el
@@ -4194,8 +4966,10 @@ public class MainActivity extends Activity {
         actTunnel = t;
         actRow("Túnel", name);
         actText("Según la documentación del panel es un borrado suave "
-                + "(soft-delete), PERO la creación de túneles está caída: "
-                + "un túnel eliminado ahora NO se puede recrear.",
+                + "(soft-delete): el túnel desaparece de la lista y su "
+                + "configuración deja de funcionar. La creación de "
+                + "túneles ya funciona otra vez (31/10), pero lo "
+                + "eliminado NO se puede deshacer desde la app.",
                 RED, 13);
         actText("Escribe el nombre exacto del túnel para habilitar el botón:",
                 TEXT2, 13);

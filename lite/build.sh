@@ -27,7 +27,7 @@ BUILD="$PROJ/build"
 # Patrón de entregables (pedido del propietario): Admin3FORCE-<versionName>.apk
 # — la versión va en el NOMBRE DEL ARCHIVO, para que el teléfono no añada
 # (1), (2)… al descargar varias builds. La etiqueta de la app no cambia.
-VERSION_NAME="0.8.5-lite"
+VERSION_NAME="0.9.5-lite"
 OUT_APK="$HOME/workspace/admin-3force/Admin3FORCE-${VERSION_NAME}.apk"
 KEYSTORE="$TC/debug.keystore"
 
@@ -41,7 +41,7 @@ mkdir -p "$BUILD/classes" "$BUILD/dex"
   -I "$ANDROID_JAR" \
   --min-sdk-version 21 \
   --target-sdk-version 34 \
-  --version-code 17 \
+  --version-code 26 \
   --version-name "$VERSION_NAME"
 
 # --- 2) Compilar el Java contra android.jar (solo framework).

@@ -611,3 +611,375 @@ Otra vez sobre Cellmaster87 (411), por elección de Gennis:
   interruptor NO se pudo determinar desde la página**. La vía que
   queda es el esquema OPTIONS que la v0.8.5 consulta desde la app.
 - Nada se tocó: Configure se cerró con Cancel.
+
+## Ronda 7 (2026-10-31 12:48, v0.8.5, sobre Cellmaster87 411 — lo ejecutó Gennis)
+
+- Refresh 200. El OPTIONS del detalle NO dejó «actions»
+  utilizables en la app (patch == null → cayó el respaldo de la
+  0.8.5) y su entrada de esquema no aparece en el bloque pegado.
+- ⚠️ **PIEZA CLAVE**: `PATCH /api/v1/tunnels/411/?personal=false`
+  con `{"status":"inactive"}` → **HTTP 400**
+  `{"detail":"Status: \"inactive\" no es una elección válida."}`.
+  Lectura: el `status` SÍ se valida contra sus opciones al
+  escribir («inactive» no es una de ellas; «disabled» SÍ pasó la
+  validación en la ronda 4 pero el estado no se movió) → todo
+  apunta a que el modelo recalcula el status al guardar desde
+  `disabled_date` (null = activo). Vocabulario probable de
+  opciones (del filtro web): active / grace / disabled / expired.
+- El 400 rechazó la escritura ANTES de aplicar: el túnel 411 quedó
+  intacto (sonda posterior 200, mismas claves).
+- **v0.8.6** (versionCode 18, construida y entregada el mismo día):
+  deshabilitar = `PATCH {"disabled_date": <instante UTC>}`,
+  habilitar = `PATCH {"disabled_date": null}`; el OPTIONS queda
+  como lectura diagnóstica registrada (su resultado va también en
+  la nota de la escritura) y ya no decide la escritura. Ronda 8:
+  probar en **Diego (525)**, no en clientes reales.
+
+## Ronda 8 (2026-10-31 14:07, v0.8.6, sobre el túnel NUEVO 558 «Prueba» de prueba_claude_3010)
+
+- 🎉 **LA CREACIÓN DE TÚNELES VOLVIÓ**: el túnel 558 (usuario
+  prueba_claude_3010, id de usuario 277) fue creado hoy
+  2026-10-31T12:56:48-04:00 y existe también un 559. El fallo de
+  creación del panel (confirmado 11:28) quedó atrás ~12:56. Hay
+  túnel desechable de verdad para pruebas.
+- Reconfirmado sobre túnel fresco: sonda 200 · descarga 200
+  (262 caracteres) · hosts 14 · cambio de servidor PATCH
+  {"host":49} → 200 con host resultante EXACTO 49
+  S3-MIAMI-WINDSCRIBE · regenerar 200 · reaprovisionar 200.
+- **OPTIONS = HTTP 405 «Método no permitido»**: el detalle NO
+  soporta OPTIONS. Se cierra el misterio de la ronda 7 (nunca
+  hubo esquema que leer). La app debe dejar de llamarlo.
+- ❌ **disabled_date TAMBIÉN es ignorado**: PATCH
+  {"disabled_date":"2026-10-31T18:07:51Z"} → 200, pero la
+  respuesta trae disabled_date=null, status=active y el
+  updated_at SIN mover (quedó en la hora del reaprovisionar):
+  el objeto ni se tocó. TERCER no-op: status / is_active /
+  disabled_date no son escribibles por el PATCH del detalle.
+  La documentación del PATCH solo declara queue_profile; notas
+  y host sí funcionan (probados). El interruptor «Tunnel status»
+  de la web NO escribe por esos campos.
+- **Siguiente paso decisivo (dif de la web)**: Gennis apaga el
+  interruptor del 558 en el Configure de la web y guarda; luego
+  en la app edita la nota del 558 (la respuesta trae el objeto
+  entero) y se compara campo a campo contra la línea base de
+  esta ronda (status=active, disabled_date=null,
+  provisioning_status=provisioned, state_hash 33fc2bef…).
+  Lo que cambie ahí revela el mecanismo real. Sin ese dato, no
+  hay v0.8.7: sería otro tiro al aire.
+
+## Ronda 9 — preparación (2026-10-31 14:18–14:20, v0.8.6 → v0.8.7)
+
+- ✅ **Nota del TÚNEL reconfirmada** sobre el 558: PATCH
+  {"notes":"nota ultima"} → 200 y la respuesta la trae aplicada.
+  (La nota de la CUENTA sigue sin probarse.)
+- El intento de deshabilitar de las 14:18:44 repite el no-op de
+  la ronda 8 (disabled_date ignorado).
+- **Gennis autorizó la prueba de ELIMINAR**: creó dos túneles
+  desechables (558 y 559) «una para eliminarla». Instruido:
+  borrar el 559 y conservar el 558 (lleva el historial y la nota).
+- **v0.8.7** (versionCode 19): Eliminar tal cual (DELETE al
+  detalle ?personal=false + guarda de nombre) con el aviso
+  actualizado (la creación ya funciona; lo eliminado no se
+  deshace desde la app); Deshabilitar/Habilitar ya no llaman al
+  OPTIONS (405). Pendiente: su toque de Eliminar + el bloque.
+
+## Dif de la web — paso 1 (2026-10-31 14:24–14:29, navegador de Muse como SawVPN)
+
+- A petición de Gennis («revisa qué está pasando»), Muse apagó el
+  558 desde el propio panel web (cuenta SawVPN, túnel de pruebas):
+  Configure → «Información General» → interruptor «Estado del
+  túnel» OFF («DESHABILITADO») → «Guardar Cambios Generales» →
+  «Operación completada — Tunel actualizado correctamente.»
+- Resultado en el panel: la lista muestra el 558 **INACTIVO** y el
+  contador de activos bajó 34 → 33; el detalle trae la etiqueta
+  **«disabled»** (su campo «Estado: online» sigue siendo el del
+  host). El 559 («Prueba-t1») quedó ACTIVO, intacto.
+- El 558 quedó APAGADO a propósito: falta el paso 2 — Gennis edita
+  la nota del 558 en la app y la respuesta (objeto entero) se
+  compara contra la línea base de la ronda 8 para identificar
+  QUÉ campo(s) movió la web.
+
+## Ronda 10 — EL DIF (2026-10-31 14:31, v0.8.7) — ✅ MECANISMO DE DESHABILITAR IDENTIFICADO
+
+Objeto del 558 DESHABILITADO por la web (respuestas de la app a
+las 14:31:02 y 14:31:28) contra la línea base activa:
+
+- `status`: "active" → **"disabled"**
+- `disabled_date`: null → **"2026-10-31T14:29:08.524116-04:00"**
+  (la hora EXACTA del guardado web: la pone EL SERVIDOR)
+- `state_hash`: cambió (33fc2bef… → 2e7611cf…)
+- Todo lo demás igual (deleted_at null, expiration_date null,
+  provisioning_status "provisioned", host 49).
+
+Conclusiones:
+1. **disabled_date es de SALIDA** (lo rellena el backend al
+   cambiar el estado): por eso escribirlo se ignoró siempre, y
+   por eso el «Habilitar» de la app de las 14:31:02
+   ({"disabled_date":null}) tampoco lo limpió.
+2. **El campo escribible es `status`**: lo prueba el 400 de la
+   ronda 7 — un campo de solo lectura no valida opciones al
+   escribir; «inactive» rebotó como elección inválida y
+   «disabled» es elección válida (vocabulario del filtro web:
+   active/grace/disabled/expired).
+3. **Reinterpretación de la ronda 4**: el {"status":"disabled"}
+   de la 0.8.1 (200 a las 11:13:34) casi seguro SÍ deshabilitó a
+   Diego, y el cambio de servidor de las 11:15:36 (reassign-host
+   reaprovisiona) lo reactivó antes de la verificación del panel
+   de las 11:17. El veredicto «no se aplicó» queda CORREGIDO: no
+   hubo ninguna lectura entre la escritura y el
+   reaprovisionamiento que lo desmintiera. La memoria de Gennis
+   («hubo una versión en que funcionó») era correcta.
+4. La app LEE bien el estado: Gennis confirmó que el 558 «sale
+   deshabilitado en la app» (statusOf con status="disabled").
+
+**v0.8.8** (versionCode 20): Deshabilitar/Habilitar =
+PATCH {"status":"disabled"} / {"status":"active"}. Prueba de
+cierre sobre el 558 (sigue deshabilitado de la web): Habilitar →
+Deshabilitar desde la app, SIN tocar servidor ni reaprovisionar
+entre medias (la lección de la ronda 4).
+
+## Ronda 11 — cierre, parte 1 (2026-10-31 14:34, v0.8.8) — ✅✅ HABILITAR CONFIRMADO
+
+- `PATCH /api/v1/tunnels/558/?personal=false` con
+  `{"status":"active"}` → **200**: la respuesta trae
+  status="active" y **disabled_date=null** (el servidor limpió
+  la fecha que la web había puesto), y el `state_hash` volvió a
+  **33fc2bef507caa05c4ec8985b65e92eb** — EXACTAMENTE el de la
+  línea base activa de las rondas 8/9: el túnel regresó
+  bit a bit a su estado activo original.
+- El mecanismo queda probado en la dirección difícil (la app
+  deshizo el apagado hecho por la propia web). Falta solo el
+  toque simétrico de Deshabilitar desde la app para cerrar el
+  capítulo en las dos direcciones.
+
+## Ronda 12 — cierre, parte 2 (2026-10-31 14:38, v0.8.8) — ✅✅ DESHABILITAR CONFIRMADO
+
+- `PATCH /api/v1/tunnels/558/?personal=false` con
+  `{"status":"disabled"}` → **200**: status="disabled",
+  disabled_date="2026-10-31T14:38:17.344832-04:00" (puesta por
+  el servidor) y `state_hash` **2e7611cfb5ada242e73fda94c55e74d3**
+  — IDÉNTICO al que produjo el interruptor de la propia web en
+  la ronda 10. La app deja el túnel bit a bit como lo deja el
+  panel.
+- **CAPÍTULO DE ACCIONES DE TÚNEL CERRADO**: marcar pagado,
+  descargar, cambiar de servidor, regenerar, reaprovisionar,
+  nota del túnel, deshabilitar y habilitar — todo probado en
+  vivo en las dos direcciones donde aplica. Quedan fuera solo
+  Eliminar (armado, autorizado, sin ejecutar: objetivo 559) y
+  la nota de la CUENTA (sin probar).
+- El 558 quedó DESHABILITADO por la app (es de pruebas; se
+  habilita cuando Gennis quiera, desde la misma app).
+
+## Ronda 13 (2026-10-31 14:41, v0.8.8) — ✅✅ ELIMINAR CONFIRMADO
+
+- `DELETE /api/v1/tunnels/559/?personal=false` → **HTTP 204**
+  (sin cuerpo): el soft-delete documentado, ejecutado por
+  Gennis sobre el desechable 559 «Prueba-t1» con la guarda de
+  nombre de la app. Era la última acción sin ejecutar.
+- **TODAS las acciones de túnel están probadas en vivo.**
+  Único cabo menor que queda: la nota de la CUENTA (implementada
+  desde la 0.6.0, nunca ejecutada) y la confirmación verbal del
+  nombre `.conf` en las descargas.
+
+## Ronda 14 (2026-10-31 14:42, v0.8.8) — ✅ NOTA DE LA CUENTA CONFIRMADA
+
+- `PATCH /api/manager/v1/accounts/users/277/` con
+  `{"notes":"se pudo la nota de la cuenta"}` → **HTTP 200** con
+  el objeto completo de la cuenta. Era la última acción sin
+  ejecutar en toda la app. Dato cruzado: la respuesta trae
+  `tunnels_count: 1` — tras el borrado del 559, a la cuenta de
+  prueba solo le queda el 558.
+- **CIERRE TOTAL de la fase de acciones**: no queda ni una
+  escritura de la Lite sin probar en vivo. Siguiente etapa: SMS
+  en Pagos › Recibidos (o la app nativa), a elección de Gennis.
+
+## v0.9.0-lite CONSTRUIDA (2026-10-31) — creación + reset, a probar
+
+Por la orden de Gennis («primero todo lo relacionado a la web y
+después lo local») la 0.9.0 cierra la parte web de la app:
+
+- **Crear cuenta**: POST documentado a `/api/manager/v1/accounts/
+  users/` con los campos del formulario web (username, password,
+  alias, telegram_username, zone?, notes, is_active). Botón
+  «+ Crear» en Cuentas.
+- **Crear túnel**: POST documentado a `/api/v1/tunnels/` SIN el
+  parámetro de alcance (la creación no es una búsqueda en el
+  viewset; si lo exige, la respuesta lo dirá y se añade en la
+  siguiente build — una variable por ronda). Cuerpo: user, name,
+  protocol="wireguard", manual_payment, name_for_user?, zone?,
+  notes?. El servidor se asigna solo; se cambia después. Botón
+  «+ Crear» en Túneles, con selector de propietario (las cuentas
+  cargadas) y de zona (las zonas con id vistas en las cuentas).
+- **Restablecer contraseña**: POST documentado a
+  `/api/manager/v1/accounts/users/<id>/reset-password/` con {};
+  botón en el detalle de la cuenta. Qué devuelve el panel
+  (¿la contraseña nueva?) lo dirá la primera respuesta real.
+- El DELETE de cuentas NO se construyó: la documentación dice
+  que es en CASCADE (transfiere el saldo al sistema).
+- Todo con el patrón seguro (un intento por toque, respuesta
+  entera en Intentos, recarga real al éxito). Prueba prevista
+  sobre desechables identificables (cuenta prueba_crear_3110).
+
+## Ronda 15 (2026-10-31 14:50–14:52, v0.9.0) — CREAR CUENTA ✅ · túnel y reset enseñan lo que falta
+
+- ✅✅ **CREAR CUENTA CONFIRMADO**: POST /api/manager/v1/
+  accounts/users/ → **201**. Cuenta `prueba_crear_3110` id 278
+  (wallet 272). Sin alias enviado, el servidor AUTO-GENERA uno
+  («xea3rqgp»); zone quedó null y fue aceptado; notes e
+  is_active aplicados; referral_code generado por el servidor.
+- **CREAR TÚNEL — 400 con la lección exacta**:
+  1. `{"detail":"Name_for_user: Asegúrese de que este campo no
+     tenga más de 20 caracteres."}` — **name_for_user ≤ 20**.
+     (El resto del cuerpo pasó: user, name de 18 caracteres,
+     protocol, manual_payment y notes sin queja.)
+  2. Con name_for_user corto: `{"detail":"Host no resuelto."}` —
+     la creación necesita resolver un HOST y sin zona ni host en
+     el cuerpo no puede (la cuenta 278 tampoco tiene zona). El
+     formulario web no trae campo de host: trae ZONA. Siguiente
+     variable (v0.9.1): selector de servidor inicial (envía
+     `host`, el campo que el PATCH del detalle ya aceptó) + la
+     zona, y validación de los 20 caracteres en el formulario.
+  (El 401→refresh→reintento único funcionó en silencio en el
+  primer intento: el patrón seguro aguantó.)
+- **RESET PASSWORD — 400**: `{"error":"El campo 'password' es
+  requerido."}` — el endpoint NO genera la contraseña: la fija
+  el admin en el cuerpo. La v0.9.1 pide la contraseña nueva en
+  la hoja y envía {"password": …}.
+
+## Ronda 16 (2026-10-31 14:59, v0.9.1) — ✅✅ CREAR TÚNEL y RESET CONFIRMADOS · la parte WEB queda cerrada
+
+- Intento 1: nombre «prueba_crear_3110» → **HTTP 500**
+  `{"detail":"El nombre solo puede contener letras, números y
+  guiones."}` — el nombre interno NO admite guiones bajos
+  (validación de negocio devuelta como 500, no 400).
+- Intento 2: nombre «prueba», zone=11, SIN host → 400 «Host no
+  resuelto.» — **la zona sola NO resuelve el host**.
+- ✅✅ Intento 3: nombre «prueba», zone=11, **host=49** →
+  **HTTP 201**: túnel **id 560** creado sobre la cuenta 278, en
+  S3-MIAMI-WINDSCRIBE (el host elegido, exacto), con la zona 11
+  en la respuesta. **CREAR TÚNEL CONFIRMADO: el campo que
+  resuelve es `host`, obligatorio en la práctica.** (La web debe
+  enviar un host por debajo: su campo ZONA no basta por la API.)
+- ✅✅ **RESET PASSWORD CONFIRMADO**: POST
+  …/accounts/users/278/reset-password/ con {"password": <la
+  fijada por el admin>} → **200** `{"message":"Contraseña
+  actualizada correctamente."}`.
+- **CIERRE DE LA PARTE WEB**: no queda ni una acción del panel
+  sin probar en vivo — leer todo, marcar pagado, descargar,
+  cambiar de servidor, regenerar, reaprovisionar, notas de
+  túnel y de cuenta, deshabilitar, habilitar, eliminar túnel,
+  CREAR CUENTA, CREAR TÚNEL y RESETEAR CONTRASEÑA. Lo que sigue
+  es la parte LOCAL (orden de Gennis): SMS, tarjetas permitidas,
+  plantillas, contactos, servidores locales, notificaciones y
+  cola offline.
+- Desechables tras la ronda: cuenta 278 con su túnel 560
+  «prueba» (activo, S3-MIAMI-WINDSCRIBE) y el 558 deshabilitado.
+
+## Ronda 17 (2026-10-31 15:04) — EL CÓDIGO JS DEL PANEL LO EXPLICA TODO: «is_auto_generated» y el cuerpo exacto de lotes
+
+A petición de Gennis («si no se elige servidor se autoasignará el
+host, el sistema se encarga en la web — revisa»), se descargaron
+los chunks JS públicos de la SPA del panel (páginas de login y
+de túneles) y se leyó el código de SUS formularios:
+
+- **El automático de la web es la bandera `is_auto_generated`.**
+  El submit individual construye: {name, name_for_user|null,
+  zone|null, notes|null, manual_payment, queue_profile?,
+  protocol, is_auto_generated, status, user} y **solo si NO es
+  automático añade `host: <id>`**. Sin la bandera, el servidor
+  asume modo manual y exige host → el «Host no resuelto» de las
+  rondas 15–16. La validación web coincide (error «host
+  requerido» si manual_payment && !auto && !host).
+- El crear individual con pago manual va al POST documentado
+  /api/v1/tunnels/ (el mismo de la app); el de planes va a
+  **POST /api/v1/tunnels/order-create/?personal=false** con
+  `target_user` (flujo de «solicitud» — no aplica a pago manual).
+- **Cuerpo EXACTO de lotes** (del submit web): {user, count,
+  protocol, status:"active", manual_payment:true, name_prefix,
+  notes|null} + zone si hay + host SOLO si !is_auto_generated
+  && host. Ruta: POST /api/v1/tunnels/bulk-create/.
+- **v0.9.3-lite (vc 24)**: el formulario individual replica la
+  bandera (automático = is_auto_generated:true y sin host;
+  manual = false + host) y añade status:"active"; selector de
+  modo «Un túnel / Por lotes» con el lote replicando el cuerpo
+  web (cantidad 2–50 de la SPEC). Pendiente: la ronda de
+  Gennis (un túnel en Automático + un lote de 2 desechables).
+
+## Ronda 18 (2026-10-31 15:08–15:10, v0.9.3) — ✅✅ AUTOMÁTICO CONFIRMADO · lotes: error del backend por investigar
+
+- ✅✅ **AUTOMÁTICO CONFIRMADO**: POST /api/v1/tunnels/ con
+  `is_auto_generated:true`, zone=11 y SIN host → **201**: túnel
+  **561** creado y el panel le asignó solo el host **39
+  «S1-CUBA»** (SAW-1). La bandera leída del JS era exactamente
+  el mecanismo. (Gennis borró el 561 y también el 560 tras
+  habilitarlo: limpieza hecha por él mismo, ambos DELETE 204.)
+- ❌ **LOTES — error interno del backend**: POST bulk-create
+  (auto, zone=11, count 3 y count 2) → 400 `{"detail":"Error
+  al crear los túneles: The QuerySet value for an exact lookup
+  must be limited to one result using slicing."}` — un error de
+  ORM de Django DENTRO del endpoint, no un rechazo de campos.
+  Hipótesis principal: la ZONA (su objeto trae 9 hosts; una
+  búsqueda «exacta» contra ese conjunto encaja con el texto del
+  error). La web por defecto crea el lote SIN zona
+  («bulkZoneNone»). Siguiente prueba SIN build nueva (la 0.9.3
+  ya lo permite): lote en Automático con **Sin zona**; si
+  repite, lote con servidor manual elegido y Sin zona.
+
+## Ronda 17b (2026-10-31 15:04–15:15) — inspección VISUAL del formulario web (navegador, sin crear nada)
+
+- El formulario «Crear Nuevo Túnel» confirma lo leído del JS:
+  el automático es el interruptor **«Generar configuración
+  automáticamente»** (ACTIVADO por defecto) con la ayuda «Si
+  está activo, el backend selecciona host y credenciales
+  disponibles de las zonas asignadas». El campo SERVIDOR solo
+  aparece con el interruptor apagado (lista buscable de 15
+  hosts; sin opción «Automático» dentro).
+- **Existen DOS zonas**: «SawVPN Nacional» y «SawVPN Nacional
+  + Cuba» (la 11, la de siempre). ZONA por defecto: «Sin zona».
+- El interruptor **Pago Manual viene APAGADO por defecto** en
+  la web (la app lo trae en Sí a propósito: es el negocio de
+  Gennis). Protocolos: WireGuard y **L2TP** (con L2TP la lista
+  de hosts sale vacía: no hay hosts L2TP). PERFIL QOS: solo
+  «Heredar del plan». Cuota de manuales: 33/100 (la lista total
+  quedó en 33 por el 558). Planes del flujo con plan: SAW BASIC
+  1.00/30 días y SAW PLUS 2.50/90 días (vía order-create).
+- No se creó ni modificó nada (el diálogo se cerró con
+  Cancelar en ambas revisiones).
+
+## Ronda 19 (2026-10-31 15:20, v0.9.3) — ✅ LOTES CONFIRMADOS con servidor manual · el automático de lotes está roto EN EL PANEL
+
+- Lote Automático SIN zona → el MISMO error QuerySet (la zona
+  NO era el disparador). **La resolución automática de host
+  del bulk-create está rota en el backend**: la web manda el
+  mismo cuerpo en automático, así que su lote automático
+  chocaría con el mismo error — es un fallo del panel.
+- ✅✅ **Lote con servidor manual** (host=42 S1-ATLANTA, sin
+  zona) → **201** «Se crearon 2 túneles correctamente.»:
+  túneles **562 «lote-1»** y **563 «lote-2»** (enumeración
+  base-N), ambos en S1-ATLANTA, activos (provisioning
+  «pending» al responder). **CREAR POR LOTES CONFIRMADO.**
+- Arreglo del lado de la app (v0.9.4): en el lote, «Automático»
+  pasa a elegirlo la APP — el servidor con menos túneles entre
+  los cargados — y lo envía explícito, rotulado con honestidad.
+  El automático individual sigue siendo el del panel
+  (is_auto_generated, probado en la ronda 18).
+- Desechables vivos tras la ronda: 562 y 563 en la cuenta 278.
+
+## Ronda 20 (2026-10-31 15:23–15:25, v0.9.4) — el pool «en uso» mezcla otro registro de hosts
+
+- Gennis eliminó él mismo los desechables 562 y 563 (204).
+- ❌ Lote en Automático (de la app): eligió «S2-Cuba» **id 17**
+  como el menos cargado → bulk-create respondió 400:
+  «El host seleccionado no pertenece a las zonas asignadas a
+  este reseller.» **Hay DOS registros de hosts**: los objetos
+  host de algunos túneles cargados traen ids de OTRO registro
+  (17, nombre «S2-Cuba» con minúsculas) que NO son válidos para
+  crear; los válidos son los de la lista del panel por túnel
+  (39–50, mayúsculas). El pool de creación debe ser ESA lista.
+- Pedidos de Gennis en la misma ronda: (1) quitar la opción
+  «sin servidor» — el formulario nace en AUTOMÁTICO hasta que
+  se cambie; (2) buscador en el selector de propietario;
+  (3) nota para todos los túneles del lote (el campo existía
+  en el estado y se enviaba, pero no se veía en la vista).
+- v0.9.5 aplica los tres pedidos + el pool = lista del panel
+  en caché (respaldo «en uso» solo si aún no llegó, anotado).
