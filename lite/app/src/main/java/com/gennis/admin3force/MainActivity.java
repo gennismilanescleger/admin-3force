@@ -299,6 +299,11 @@ import android.graphics.RenderEffect;
  *    ({user, count, protocol, status, manual_payment:true,
  *    name_prefix, notes} + zone + host solo en manual); cantidad
  *    2–50 según la SPEC y el panel enumera desde el nombre base.
+ *  - v1.5.118: TOCAR EL ICONO DE LA VISTA ACTUAL REINICIA SU LISTA
+ *   (su pedido, aprobado por demo): estando en Túneles, Cuentas o
+ *   Pagos con búsqueda o filtro puestos, tocar abajo el icono de
+ *   esa misma vista lo quita todo y la lista vuelve entera,
+ *   subiendo arriba. Sin búsqueda ni filtro no hace nada.
  *  - v1.5.117: BLUR EN TODA LA APP (la v1.5.116 abría pero se veía
  *   todo borroso): al reconstruir, syncBars perdió su condición
  *   y aplicaba el desenfoque siempre. Reescrito con la lógica
@@ -22516,6 +22521,25 @@ public class MainActivity extends Activity {
         }
         if (this.state == State.CUENTAS && i != 2) {
             resetAccountsList();
+        }
+        // Su orden (v1.5.118): tocar el icono de la vista en la que ya estás
+        // reinicia su lista — quita la búsqueda y el filtro de esa vista.
+        if (i == 1 && this.state == State.TUNELES && (!this.tunnelsQuery.isEmpty() || !"ALL".equals(this.tunnelsFilter))) {
+            resetTunnelsList();
+            scrollTabToTop(1);
+        }
+        if (i == 2 && this.state == State.CUENTAS && (!this.accountsQuery.isEmpty() || !"ALL".equals(this.accountsFilter))) {
+            resetAccountsList();
+            scrollTabToTop(2);
+        }
+        if (i == 3 && this.state == State.PAGOS && !this.pagosSearch.isEmpty()) {
+            this.pagosSearch = "";
+            if (this.pagosSearchEdit != null && this.pagosSearchEdit.getText().length() > 0) {
+                this.pagosSearchEdit.setText("");
+            } else {
+                refreshPagosList();
+            }
+            scrollTabToTop(3);
         }
         hideAll();
         this.mainContainer.setVisibility(0);
