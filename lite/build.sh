@@ -27,7 +27,7 @@ BUILD="$PROJ/build"
 # Patrón de entregables (pedido del propietario): Admin3FORCE-<versionName>.apk
 # — la versión va en el NOMBRE DEL ARCHIVO, para que el teléfono no añada
 # (1), (2)… al descargar varias builds. La etiqueta de la app no cambia.
-VERSION_NAME=1.5.116-lite
+VERSION_NAME=1.5.117-lite
 OUT_APK="$HOME/workspace/admin-3force/Admin3FORCE-${VERSION_NAME}.apk"
 KEYSTORE="$TC/debug.keystore"
 
@@ -48,7 +48,7 @@ mkdir -p "$BUILD/classes" "$BUILD/dex" "$BUILD/gen"
   -I "$ANDROID_JAR" \
   --min-sdk-version 21 \
   --target-sdk-version 34 \
-  --version-code 251 \
+  --version-code 252 \
   --version-name "$VERSION_NAME" \
   "$BUILD/res.zip"
 

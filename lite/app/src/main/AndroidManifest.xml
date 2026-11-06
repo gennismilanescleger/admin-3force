@@ -6,8 +6,8 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.gennis.admin3force"
-    android:versionCode="251"
-    android:versionName="1.5.116-lite">
+    android:versionCode="252"
+    android:versionName="1.5.117-lite">
 
     <uses-sdk
         android:minSdkVersion="21"

@@ -299,6 +299,11 @@ import android.graphics.RenderEffect;
  *    ({user, count, protocol, status, manual_payment:true,
  *    name_prefix, notes} + zone + host solo en manual); cantidad
  *    2–50 según la SPEC y el panel enumera desde el nombre base.
+ *  - v1.5.117: BLUR EN TODA LA APP (la v1.5.116 abría pero se veía
+ *   todo borroso): al reconstruir, syncBars perdió su condición
+ *   y aplicaba el desenfoque siempre. Reescrito con la lógica
+ *   exacta del original (verificada en el binario de la .114):
+ *   desenfoque solo con una ventana grande abierta encima.
  *  - v1.5.116: ARREGLO DE ARRANQUE (la v1.5.115 reconstruida se
  *   cerraba al abrir): buildLockUi quedó con la cola duplicada
  *   al reconstruir el código y añadía dos veces el mismo
@@ -34098,60 +34103,13 @@ public class MainActivity extends Activity {
     }
 
     private void syncBars() {
-        boolean z;
-        boolean z2;
         try {
-            if (!this.actOpen && !this.menuOpen && !this.detailOpen && !this.sheetOpen && !this.dropdownOpen) {
-                State state = this.state;
-                State state2 = State.SESSION;
-            }
             getWindow().setStatusBarColor(0);
             getWindow().setNavigationBarColor(0);
-            boolean z3 = this.actOpen;
-            boolean z4 = true;
-            if (!z3 && !this.sheetOpen && !this.detailOpen && !this.notifOpen && !this.menuOpen && !this.dropdownBig) {
-                z = false;
-                if (!z3 && !this.sheetOpen) {
-                    z2 = false;
-                    applyWindowBlur(z, z2);
-                    setViewBlur(this.actContainer, !this.actOpen && this.sheetOpen);
-                    LinearLayout linearLayout = this.sheetContainer;
-                    if (this.sheetOpen || !this.actOpen) {
-                        z4 = false;
-                    }
-                    setViewBlur(linearLayout, z4);
-                    setViewBlur(this.menuContainer, false);
-                }
-                z2 = true;
-                applyWindowBlur(z, z2);
-                setViewBlur(this.actContainer, !this.actOpen && this.sheetOpen);
-                LinearLayout linearLayout2 = this.sheetContainer;
-                if (this.sheetOpen) {
-                }
-                z4 = false;
-                setViewBlur(linearLayout2, z4);
-                setViewBlur(this.menuContainer, false);
-            }
-            z = true;
-            if (!z3) {
-                z2 = false;
-                applyWindowBlur(z, z2);
-                setViewBlur(this.actContainer, !this.actOpen && this.sheetOpen);
-                LinearLayout linearLayout22 = this.sheetContainer;
-                if (this.sheetOpen) {
-                }
-                z4 = false;
-                setViewBlur(linearLayout22, z4);
-                setViewBlur(this.menuContainer, false);
-            }
-            z2 = true;
-            applyWindowBlur(z, z2);
-            setViewBlur(this.actContainer, !this.actOpen && this.sheetOpen);
-            LinearLayout linearLayout222 = this.sheetContainer;
-            if (this.sheetOpen) {
-            }
-            z4 = false;
-            setViewBlur(linearLayout222, z4);
+            boolean big = this.actOpen || this.sheetOpen || this.detailOpen || this.notifOpen || this.menuOpen || this.dropdownBig;
+            applyWindowBlur(big, this.actOpen || this.sheetOpen);
+            setViewBlur(this.actContainer, this.actOpen && this.sheetOpen);
+            setViewBlur(this.sheetContainer, this.sheetOpen && this.actOpen);
             setViewBlur(this.menuContainer, false);
         } catch (Exception e) {
         }
