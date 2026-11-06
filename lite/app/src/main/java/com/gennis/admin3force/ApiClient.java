@@ -56,9 +56,28 @@ public class ApiClient {
     private static final int MAX_PAGES = 12;
 
     private final SessionStore store;
+    // Timeouts cortos para CARGAS (v0.35.0): una carga de fondo
+    // sin red no debe colgar 12 s por bloque; las escrituras
+    // conservan los valores completos.
+    /** Desconexión simulada (v1.5.38): el
+     *  interruptor «Desconectar de la web» de
+     *  Desarrollo. Con esto activo, NINGUNA
+     *  petición sale: rawRequest devuelve el
+     *  «sin respuesta» de siempre sin tocar
+     *  la red. Lo sincronizan la app (desde
+     *  devWebOff) y los motores de fondo. */
+    public static volatile boolean SIMULATE_OFFLINE = false;
+
+    private int connectTimeoutMs = CONNECT_TIMEOUT_MS;
 
     public ApiClient(SessionStore store) {
         this.store = store;
+    }
+
+    /** Este cliente es para cargar datos: conectar falla antes. */
+    public ApiClient useLoadTimeouts() {
+        connectTimeoutMs = 7000;
+        return this;
     }
 
     // ---------------- API pública ----------------
@@ -378,6 +397,17 @@ public class ApiClient {
     private Result rawRequest(String method, String urlStr, String jsonBody, boolean auth) {
         Result r = new Result();
         long start = System.currentTimeMillis();
+        if (SIMULATE_OFFLINE) {
+            // La petición NO sale (v1.5.38): el
+            // resultado es el de «sin respuesta»,
+            // para que cada rincón de la app se
+            // comporte como sin conexión con el
+            // panel durante la prueba.
+            r.code = 0;
+            r.error = "Sin conexión (simulado)";
+            r.ms = System.currentTimeMillis() - start;
+            return r;
+        }
         HttpURLConnection conn = null;
         try {
             URL url = new URL(urlStr);
@@ -394,7 +424,7 @@ public class ApiClient {
                 conn.setRequestProperty("X-HTTP-Method-Override", "PATCH");
                 r.methodOverridden = true;
             }
-            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setConnectTimeout(connectTimeoutMs);
             conn.setReadTimeout(READ_TIMEOUT_MS);
             conn.setRequestProperty("Accept", "application/json");
             if (auth) {

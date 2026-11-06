@@ -983,3 +983,30 @@ de túneles) y se leyó el código de SUS formularios:
   en el estado y se enviaba, pero no se veía en la vista).
 - v0.9.5 aplica los tres pedidos + el pool = lista del panel
   en caché (respaldo «en uso» solo si aún no llegó, anotado).
+
+## Ronda 21 (2026-10-31 15:57, v0.9.5) — ✅✅ LOTE EN AUTOMÁTICO DE LA APP + NOTA DEL LOTE: LA WEB QUEDA CERRADA AL 100%
+
+- Lote Automático con prefijo «auto» → 400 con una validación
+  NUEVA y clara del panel: «El nombre "auto-1" ya existe para
+  este usuario. Use otro prefijo.» (existen túneles auto-1/2 en
+  la 278 de algún intento no registrado; el bulk valida la
+  unicidad del prefijo por usuario).
+- ✅✅ Con prefijo «autor» → **201**: la app eligió **S1-CUBA
+  (id 39)** de la LISTA DEL PANEL (pool correcto, anotado en el
+  registro) como el de menos túneles cargados y el panel lo
+  aceptó. Túneles **566 «autor-1» y 567 «autor-2»**, activos.
+- ✅✅ **La nota del lote («test») quedó aplicada en CADA túnel
+  creado** (`"notes":"test"` en los objetos de la respuesta).
+- **LA PARTE WEB DE LA APP ESTÁ CERRADA Y VERIFICADA AL 100%.**
+  Siguiente etapa por orden de Gennis: la parte LOCAL, empezando
+  por SMS (Pagos › Recibidos).
+- Desechables vivos en la 278: 566, 567 (y auto-1/auto-2 si los
+  hay); Gennis los borra desde la app cuando quiera.
+
+## Ronda 22 (2026-11-02, desde la app v0.69.0, diagnóstico de Gennis) — PATCH de cuenta
+
+- `PATCH /api/manager/v1/accounts/users/260/` con `{"zone":11}` → **200**; la respuesta trae `zone` como OBJETO {id:11, hosts:[…]}. La zona de la cuenta se escribe por ID.
+- `PATCH /api/manager/v1/accounts/users/278/` con `{"full_name":"Prueba"}` → **200** y la respuesta trae `"full_name":"Prueba"`: la API SÍ guarda full_name. PERO la web NO lo ofrece en su editor de cuenta (su editor da usuario/alias/telegram — palabra de Gennis tras revisar la web) y Gennis lo rechazó en la app: la v0.70.0 quitó el campo del formulario. No reponerlo sin su orden.
+- La respuesta del detalle de cuenta trae además: wallet anidada {id, is_active, balance, user{…}}, clients_count, manual_tunnel_limit, referrals_count, referral_code, telegram_id, is_telegram_verified, created_by_reseller, was_active_before_reseller_deactivation.
+- Pendiente de la misma familia: PATCH {"username"} (la v0.70.0 lo incluye en Editar cuenta; sin resultado en vivo aún) y alias/telegram por la misma vía (mismo PATCH que notes/zone/full_name, alta confianza pero sin 200 propio todavía).
+- «Mi cuenta» v0.69.0: el trío GET /api/manager/v1/profile/ (+reseller-settings/, referral-stats/) NO bajó en su teléfono (la hoja quedó en ficha de sesión). La v0.70.0 encadena manager → /api/v1/profile/… en lectura. Sin veredicto en vivo aún.

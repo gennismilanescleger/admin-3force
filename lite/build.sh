@@ -27,29 +27,38 @@ BUILD="$PROJ/build"
 # Patrón de entregables (pedido del propietario): Admin3FORCE-<versionName>.apk
 # — la versión va en el NOMBRE DEL ARCHIVO, para que el teléfono no añada
 # (1), (2)… al descargar varias builds. La etiqueta de la app no cambia.
-VERSION_NAME="0.9.5-lite"
+VERSION_NAME=1.5.115-lite
 OUT_APK="$HOME/workspace/admin-3force/Admin3FORCE-${VERSION_NAME}.apk"
 KEYSTORE="$TC/debug.keystore"
 
 rm -rf "$BUILD"
-mkdir -p "$BUILD/classes" "$BUILD/dex"
+mkdir -p "$BUILD/classes" "$BUILD/dex" "$BUILD/gen"
 
-# --- 1) Enlazar el manifiesto con aapt2 (la UI es programática: no hay res/).
+# --- 1) Recursos (v1.5.30: los iconos de la app) y enlace
+# del manifiesto con aapt2. La UI sigue programática; res/
+# solo trae los iconos (launcher, adaptativo y la silueta
+# de notificación) y genera la clase R.
+"$BT/aapt2" compile --dir "$PROJ/app/src/main/res" \
+  -o "$BUILD/res.zip"
 "$BT/aapt2" link \
   -o "$BUILD/base.apk" \
   --manifest "$PROJ/app/src/main/AndroidManifest.xml" \
+  -A "$PROJ/app/src/main/assets" \
+  --java "$BUILD/gen" \
   -I "$ANDROID_JAR" \
   --min-sdk-version 21 \
   --target-sdk-version 34 \
-  --version-code 26 \
-  --version-name "$VERSION_NAME"
+  --version-code 250 \
+  --version-name "$VERSION_NAME" \
+  "$BUILD/res.zip"
 
 # --- 2) Compilar el Java contra android.jar (solo framework).
 # shellcheck disable=SC2046
 javac -source 8 -target 8 -encoding UTF-8 \
   -cp "$ANDROID_JAR" \
   -d "$BUILD/classes" \
-  $(find "$PROJ/app/src/main/java" -name '*.java')
+  $(find "$PROJ/app/src/main/java" -name '*.java') \
+  $(find "$BUILD/gen" -name '*.java')
 
 # --- 3) Dexar con min-api 21, sin shrinking.
 # OJO: d8 (tanto el de build-tools 34 como el R8 suelto) RECHAZA el directorio

@@ -6,16 +6,33 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.gennis.admin3force"
-    android:versionCode="26"
-    android:versionName="0.9.5-lite">
+    android:versionCode="250"
+    android:versionName="1.5.115-lite">
 
     <uses-sdk
         android:minSdkVersion="21"
         android:targetSdkVersion="34" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Etapa SMS (v0.10.0): leer la bandeja de SMS del teléfono para
+         presentar los pagos de Transfermóvil/EnZona en Pagos › Recibidos.
+         Permiso de tiempo de ejecución: la app lo pide en la vista Pagos. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Detección al momento (v0.26.0, capa 1): recibir el aviso de
+         SMS entrante para detectar el pago cuando llega. Se pide
+         junto al de lectura en la vista Pagos. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+    <!-- Identificación por contactos (v0.26.0): cruzar el teléfono
+         que pagó con los contactos del teléfono. Solo lectura, y se
+         pide desde la propia sección de Recibidos. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+    <!-- Vigía de registros (v0.52.0): rearmar su despertador
+         horario al arrancar el teléfono. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Descarga de .conf en Android ≤ 28 (en 29+ se usa MediaStore, sin
          permiso). En el teléfono de pruebas (Android 12) no se usa. -->
     <uses-permission
@@ -24,17 +41,56 @@
 
     <application
         android:label="Admin 3FORCE"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:allowBackup="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:windowSoftInputMode="adjustPan"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Capa 1: aviso al momento cuando entra un SMS. -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+        <!-- Capa 3: barrido periódico con marca de agua. -->
+        <receiver
+            android:name=".SmsSweepReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gennis.admin3force.SMS_SWEEP" />
+            </intent-filter>
+        </receiver>
+        <!-- Vigía de registros (v0.52.0): despertador de una
+             hora con la app cerrada + rearme al arrancar. -->
+        <receiver
+            android:name=".WatchReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gennis.admin3force.WATCH_ACCOUNTS" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <!-- Respaldo automático 2 AM (v1.0.0): despertador
+             diario con la app cerrada + rearme al arrancar. -->
+        <receiver
+            android:name=".BackupReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.gennis.admin3force.AUTO_BACKUP" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

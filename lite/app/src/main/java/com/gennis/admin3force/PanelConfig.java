@@ -162,5 +162,35 @@ public final class PanelConfig {
         return userUrl(id) + "reset-password/";
     }
 
+    // ---- Mi cuenta (v0.69.0): el perfil PROPIO del manager ----
+    // Documentados en Developers (GET/PATCH /api/manager/v1/profile/
+    // y sus dos subrutas): perfil propio, ajustes de reseller y
+    // estadísticas de referidos. La app los lee al abrir «Mi cuenta»;
+    // el alias propio se edita con PATCH al perfil.
+    public static final String OWN_PROFILE_URL = API_MANAGER + "/profile/";
+    public static final String OWN_RESELLER_SETTINGS_URL =
+            API_MANAGER + "/profile/reseller-settings/";
+    public static final String OWN_REFERRAL_URL =
+            API_MANAGER + "/profile/referral-stats/";
+    // Las mismas tres rutas en la familia v1 (también
+    // documentadas): la v0.69.0 solo probó la familia
+    // manager y «Mi cuenta» se veía como la sesión —
+    // desde la v0.70.0 la LECTURA encadena: manager y,
+    // si no responde, v1; la escritura usa la familia
+    // que respondió en la lectura.
+    public static final String OWN_PROFILE_URL_V1 =
+            API_V1 + "/profile/";
+    public static final String OWN_RESELLER_SETTINGS_URL_V1 =
+            API_V1 + "/profile/reseller-settings/";
+    public static final String OWN_REFERRAL_URL_V1 =
+            API_V1 + "/profile/referral-stats/";
+
+    /** Descarga de un túnel PROPIO (personal=true): la familia del
+     *  detalle sin parámetro de alcance — el alcance de clientes
+     *  (?personal=false) es solo para los de clientes. */
+    public static String ownDownloadConfigUrl(long id) {
+        return tunnelUrl(id) + "download-config/";
+    }
+
     private PanelConfig() {}
 }

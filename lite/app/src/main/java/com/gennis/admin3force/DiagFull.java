@@ -44,6 +44,7 @@ public final class DiagFull {
     private final JSONArray matrix;
     private final int year;
     private final int month;
+    private String smsDebug;   // depuración del parseo de SMS (v0.10.0)
 
     public DiagFull(String versionName, String versionCode, String androidDesc,
                     JSONObject sessionJson, String sessionBody,
@@ -125,7 +126,16 @@ public final class DiagFull {
         appendSection(sb, "4. SESIÓN (DETALLE)", sessionDetailBody());
         appendSection(sb, "5. USUARIOS — AGREGADOS", usersBody());
         appendSection(sb, "6. TÚNELES — AGREGADOS", tunnelsBody());
+        appendSection(sb, "7. SMS DE PAGO — DEPURACIÓN DEL PARSEO",
+                smsDebug != null ? smsDebug
+                        : "Sin lectura de SMS todavía (abre Pagos y permite "
+                                + "el acceso a los SMS).\n");
         return sb.toString();
+    }
+
+    /** Texto de depuración de la etapa SMS (lo fija MainActivity). */
+    public void setSmsDebug(String text) {
+        this.smsDebug = text;
     }
 
     private static String now() {

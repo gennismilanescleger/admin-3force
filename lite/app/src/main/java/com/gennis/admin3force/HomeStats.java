@@ -663,8 +663,8 @@ public final class HomeStats {
 
     /**
      * Una entrada de la vista Pagos: un túnel y un mes, con su estado según
-     * la matriz real. `noCell` = la fila no trae celda de ese mes (solo se
-     * genera para el mes actual: por la regla confirmada, es un pendiente).
+     * la matriz real. `noCell` = la fila no trae celda de ese mes (desde la
+     * v1.2.3 puede ser cualquier mes desde la creación: es un pendiente).
      * notes/markedAt/markedBy vienen de la celda cuando existe.
      */
     public static class PayEntry {
@@ -772,56 +772,169 @@ public final class HomeStats {
     }
 
     /**
-     * Pendientes según la regla confirmada (2026-10-31):
-     *  - Mes actual: filas SIN celda del mes (noCell) + celdas del mes en
-     *    estado explícito no pagado — el mismo criterio que matrix().
-     *  - Meses anteriores: solo celdas explícitas no pagadas.
-     * Ordenados por mes descendente (el mes actual queda primero).
+     * Pendientes, REGLA SIMPLE (v1.2.3, su orden: «que los
+     * meses no pagados desde la creación se muestren como
+     * deuda»): un túnel debe todo mes desde el mes de su
+     * creación hasta el actual que no tenga marca de
+     * pagado — haya celda en la matriz o no. La regla
+     * anterior (2026-10-31) solo contaba un mes pasado
+     * con celda explícita sin pagar, y un mes sin pagar
+     * que el panel nunca registró se caía de la lista al
+     * cambiar el calendario (pasó con octubre de 2026:
+     * Cellmaster87, Savior y mlealglez no salían).
+     * Sin fecha de creación conocida de un túnel, se le
+     * aplica la regla anterior solo a ese túnel.
+     * Ordenados por mes descendente (el actual primero).
      */
     public static List<PayEntry> pendingEntries(JSONArray rows, int curYear, int curMonth) {
+        return pendingEntries(rows, curYear, curMonth, null);
+    }
+
+    public static List<PayEntry> pendingEntries(JSONArray rows, int curYear,
+            int curMonth, java.util.Map<Long, Integer> creationKeys) {
         List<PayEntry> out = new ArrayList<>();
         if (rows == null) return out;
         int curKey = curYear * 100 + curMonth;
         for (int i = 0; i < rows.length(); i++) {
             JSONObject row = rows.optJSONObject(i);
             if (row == null) continue;
-            // Mes actual, con el mismo buscador de celdas que matrix().
-            Object cell = findMonthCell(row, curYear, curMonth);
-            if (cell == null || cell == JSONObject.NULL) {
-                PayEntry e = baseEntry(row, curMonth, curYear);
-                e.paid = false;
-                e.noCell = true;
-                out.add(e);
-            } else {
-                int st = mapCellValue(cell);
-                if (st == 0 || (st == -1 && hasExplicitState(cell))) {
-                    PayEntry e = baseEntry(row, curMonth, curYear);
-                    e.paid = false;
-                    if (cell instanceof JSONObject) fillCellData(e, (JSONObject) cell);
-                    out.add(e);
+            Integer ck = null;
+            if (creationKeys != null) {
+                PayEntry probe = baseEntry(row, curMonth, curYear);
+                if (probe.tunnelId >= 0) {
+                    ck = creationKeys.get(probe.tunnelId);
                 }
             }
-            // Meses anteriores: celdas explícitas no pagadas del arreglo.
-            JSONArray months = monthsArray(row);
-            if (months == null) continue;
-            for (int j = 0; j < months.length(); j++) {
-                JSONObject c = months.optJSONObject(j);
-                if (c == null) continue;
-                Integer m = cellInt(c, "month");
-                Integer y = cellInt(c, "year");
-                if (m == null || y == null) continue;
-                if (y * 100 + m >= curKey) continue; // solo anteriores
-                int st = mapCellValue(c);
-                if (st == 0 || (st == -1 && hasExplicitState(c))) {
+            if (ck == null) {
+                addPendingLegacy(out, row, curYear, curMonth, curKey);
+                continue;
+            }
+            // Mes a mes desde su creación hasta hoy: la
+            // celda pagada es la ÚNICA que limpia el mes;
+            // sin marca de pagado, el mes es deuda.
+            int y = ck / 100, m = ck % 100;
+            while (y * 100 + m <= curKey) {
+                Object cell = findMonthCell(row, y, m);
+                boolean paidCell = cell != null
+                        && cell != JSONObject.NULL
+                        && mapCellValue(cell) == 1;
+                if (!paidCell) {
                     PayEntry e = baseEntry(row, m, y);
                     e.paid = false;
-                    fillCellData(e, c);
+                    if (cell instanceof JSONObject) {
+                        fillCellData(e, (JSONObject) cell);
+                    } else if (cell == null
+                            || cell == JSONObject.NULL) {
+                        e.noCell = true;
+                    }
                     out.add(e);
                 }
+                m++;
+                if (m > 12) { m = 1; y++; }
             }
         }
         sortByMonthDesc(out);
         return out;
+    }
+
+    /** La regla anterior a la v1.2.3, para un túnel sin
+     *  fecha de creación conocida: el mes actual cuenta
+     *  sin celda; los anteriores, solo con celda
+     *  explícita sin pagar. */
+    private static void addPendingLegacy(List<PayEntry> out, JSONObject row,
+            int curYear, int curMonth, int curKey) {
+        // Mes actual, con el mismo buscador de celdas que matrix().
+        Object cell = findMonthCell(row, curYear, curMonth);
+        if (cell == null || cell == JSONObject.NULL) {
+            PayEntry e = baseEntry(row, curMonth, curYear);
+            e.paid = false;
+            e.noCell = true;
+            out.add(e);
+        } else {
+            int st = mapCellValue(cell);
+            if (st == 0 || (st == -1 && hasExplicitState(cell))) {
+                PayEntry e = baseEntry(row, curMonth, curYear);
+                e.paid = false;
+                if (cell instanceof JSONObject) fillCellData(e, (JSONObject) cell);
+                out.add(e);
+            }
+        }
+        // Meses anteriores: celdas explícitas no pagadas del arreglo.
+        JSONArray months = monthsArray(row);
+        if (months == null) return;
+        for (int j = 0; j < months.length(); j++) {
+            JSONObject c = months.optJSONObject(j);
+            if (c == null) continue;
+            Integer m = cellInt(c, "month");
+            Integer y = cellInt(c, "year");
+            if (m == null || y == null) continue;
+            if (y * 100 + m >= curKey) continue; // solo anteriores
+            int st = mapCellValue(c);
+            if (st == 0 || (st == -1 && hasExplicitState(c))) {
+                PayEntry e = baseEntry(row, m, y);
+                e.paid = false;
+                fillCellData(e, c);
+                out.add(e);
+            }
+        }
+    }
+
+    /** Clave (año*100+mes) del mes de creación a partir
+     *  de una fecha ISO del panel; 0 si no se puede
+     *  leer. Las fechas sin zona se leen en hora de
+     *  La Habana, como en el resto de la app. */
+    public static int creationKeyOf(String iso) {
+        if (iso == null || iso.isEmpty()) return 0;
+        String[] pats = {
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd"};
+        for (String p : pats) {
+            try {
+                java.text.SimpleDateFormat f =
+                        new java.text.SimpleDateFormat(p, Locale.US);
+                if (p.endsWith("'Z'")) {
+                    f.setTimeZone(java.util.TimeZone
+                            .getTimeZone("UTC"));
+                } else {
+                    f.setTimeZone(java.util.TimeZone
+                            .getTimeZone("America/Havana"));
+                }
+                java.util.Date d = f.parse(iso);
+                if (d != null) {
+                    java.util.Calendar c = java.util.Calendar
+                            .getInstance(java.util.TimeZone
+                                    .getTimeZone("America/Havana"));
+                    c.setTime(d);
+                    return c.get(java.util.Calendar.YEAR) * 100
+                            + c.get(java.util.Calendar.MONTH) + 1;
+                }
+            } catch (Exception ignored) {
+                // siguiente formato
+            }
+        }
+        return 0;
+    }
+
+    /** Mapa id de túnel → clave de su mes de creación,
+     *  desde el arreglo de túneles del panel. */
+    public static java.util.Map<Long, Integer> creationKeysOf(JSONArray tunnels) {
+        java.util.Map<Long, Integer> map = new java.util.HashMap<>();
+        if (tunnels == null) return map;
+        for (int i = 0; i < tunnels.length(); i++) {
+            JSONObject t = tunnels.optJSONObject(i);
+            if (t == null) continue;
+            Object id = t.opt("id");
+            if (!(id instanceof Number)) continue;
+            Object ca = t.opt("created_at");
+            int k = ca instanceof String
+                    ? creationKeyOf((String) ca) : 0;
+            if (k > 0) map.put(((Number) id).longValue(), k);
+        }
+        return map;
     }
 
     // ---------------- Tasa USDT ----------------
