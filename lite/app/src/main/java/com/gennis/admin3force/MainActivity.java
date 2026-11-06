@@ -299,6 +299,13 @@ import android.graphics.RenderEffect;
  *    ({user, count, protocol, status, manual_payment:true,
  *    name_prefix, notes} + zone + host solo en manual); cantidad
  *    2–50 según la SPEC y el panel enumera desde el nombre base.
+ *  - v1.5.116: ARREGLO DE ARRANQUE (la v1.5.115 reconstruida se
+ *   cerraba al abrir): buildLockUi quedó con la cola duplicada
+ *   al reconstruir el código y añadía dos veces el mismo
+ *   contenedor (IllegalStateException al crear la pantalla
+ *   de huella). Reescrito fiel al original + red de seguridad:
+ *   si algo falla al abrir, la app muestra el error en pantalla
+ *   en vez de cerrarse sin más.
  *  - v1.5.115: LA CONFIGURACIÓN TERMINA EN .conf Y SIN
  *   REPETIDOS (su cacería: «tiene que terminar en punto
  *   conf, no puede terminar en punto txt» + «nada de
@@ -8592,136 +8599,97 @@ public class MainActivity extends Activity {
         Code decompiled incorrectly, please refer to instructions dump.
     */
     private void buildLockUi(FrameLayout frameLayout) {
-        Drawable drawable;
         LinearLayout linearLayout = new LinearLayout(this);
         this.lockContainer = linearLayout;
         linearLayout.setOrientation(1);
         this.lockContainer.setGravity(1);
         this.lockContainer.setPadding(dp(24), dp(34), dp(24), dp(24));
+        Drawable drawable = null;
         if (Build.VERSION.SDK_INT >= 26) {
             Drawable drawable2 = getDrawable(R.mipmap.ic_launcher);
             if (drawable2 instanceof AdaptiveIconDrawable) {
                 drawable = ((AdaptiveIconDrawable) drawable2).getForeground();
-                if (drawable != null) {
-                    FrameLayout frameLayout2 = new FrameLayout(this);
-                    try {
-                        View view = new View(this);
-                        GradientDrawable gradientDrawable = new GradientDrawable();
-                        gradientDrawable.setGradientType(1);
-                        gradientDrawable.setGradientRadius(dp(102));
-                        gradientDrawable.setColors(new int[]{Color.argb(44, 37, 99, 235), Color.argb(0, 37, 99, 235)});
-                        view.setBackground(gradientDrawable);
-                        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(dp(204), dp(204));
-                        layoutParams.gravity = 17;
-                        frameLayout2.addView(view, layoutParams);
-                        View view2 = new View(this);
-                        view2.setBackground(new ArcRing(Color.argb(190, 34, 211, 238), dp(3), -30.0f, 105.0f, 2));
-                        FrameLayout.LayoutParams layoutParams2 = new FrameLayout.LayoutParams(dp(200), dp(200));
-                        layoutParams2.gravity = 17;
-                        frameLayout2.addView(view2, layoutParams2);
-                        View view3 = new View(this);
-                        view3.setBackground(new ArcRing(Color.argb(150, 34, 211, 238), dp(3), 120.0f, 65.0f, 2));
-                        FrameLayout.LayoutParams layoutParams3 = new FrameLayout.LayoutParams(dp(186), dp(186));
-                        layoutParams3.gravity = 17;
-                        frameLayout2.addView(view3, layoutParams3);
-                        spin(view2, 2200, false);
-                        spin(view3, 3400, true);
-                    } catch (Exception e) {
-                    }
-                    ImageView imageView = new ImageView(this);
-                    imageView.setImageDrawable(drawable);
-                    FrameLayout.LayoutParams layoutParams4 = new FrameLayout.LayoutParams(dp(176), dp(176));
-                    layoutParams4.gravity = 17;
-                    frameLayout2.addView(imageView, layoutParams4);
-                    this.lockContainer.addView(frameLayout2, new LinearLayout.LayoutParams(dp(208), dp(208)));
-                }
-                TextView textView = new TextView(this);
-                textView.setText("Protege tu acceso");
-                textView.setTextColor(TEXT);
-                textView.setTextSize(23.0f);
-                textView.setTypeface(tfBold());
-                textView.setGravity(17);
-                textView.setPadding(0, dp(6), 0, 0);
-                this.lockContainer.addView(textView, new LinearLayout.LayoutParams(-1, -2));
-                TextView textView2 = new TextView(this);
-                textView2.setText("Utiliza tu huella dactilar para acceder de forma rápida y segura.");
-                textView2.setTextColor(TEXT2);
-                textView2.setTextSize(12.5f);
-                textView2.setGravity(17);
-                textView2.setPadding(0, dp(4), 0, 0);
-                this.lockContainer.addView(textView2);
-                View view4 = new View(this);
-                view4.setBackgroundColor(LINE_SOFT);
-                LinearLayout.LayoutParams layoutParams5 = new LinearLayout.LayoutParams(dp(170), dp(1));
-                layoutParams5.topMargin = dp(14);
-                this.lockContainer.addView(view4, layoutParams5);
-                TextView textView3 = new TextView(this);
-                this.lockStatus = textView3;
-                textView3.setTextColor(TEXT);
-                this.lockStatus.setTextSize(13.0f);
-                this.lockStatus.setVisibility(8);
-                this.lockStatus.setGravity(17);
-                this.lockStatus.setPadding(0, dp(18), 0, dp(12));
-                this.lockContainer.addView(this.lockStatus);
-                Button makePrimaryButton = makePrimaryButton("Autenticar con huella");
-                makePrimaryButton.setTextSize(15.0f);
-                makePrimaryButton.setOnClickListener(new View.OnClickListener() { // from class: com.gennis.admin3force.MainActivity$$ExternalSyntheticLambda257
-                    @Override // android.view.View.OnClickListener
-                    public final void onClick(View view5) {
-                        MainActivity.this.m41lambda$buildLockUi$6$comgennisadmin3forceMainActivity(view5);
-                    }
-                });
-                LinearLayout.LayoutParams fullWidthLp = fullWidthLp();
-                fullWidthLp.height = dp(52);
-                fullWidthLp.topMargin = dp(30);
-                this.lockContainer.addView(makePrimaryButton, fullWidthLp);
-                this.lockContainer.setVisibility(8);
-                frameLayout.addView(this.lockContainer, new FrameLayout.LayoutParams(-1, -1));
             }
         }
-        drawable = null;
         if (drawable != null) {
+            FrameLayout frameLayout2 = new FrameLayout(this);
+            try {
+                View view = new View(this);
+                GradientDrawable gradientDrawable = new GradientDrawable();
+                gradientDrawable.setGradientType(1);
+                gradientDrawable.setGradientRadius(dp(102));
+                gradientDrawable.setColors(new int[]{Color.argb(44, 37, 99, 235), Color.argb(0, 37, 99, 235)});
+                view.setBackground(gradientDrawable);
+                FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(dp(204), dp(204));
+                layoutParams.gravity = 17;
+                frameLayout2.addView(view, layoutParams);
+                View view2 = new View(this);
+                view2.setBackground(new ArcRing(Color.argb(190, 34, 211, 238), dp(3), -30.0f, 105.0f, 2));
+                FrameLayout.LayoutParams layoutParams2 = new FrameLayout.LayoutParams(dp(200), dp(200));
+                layoutParams2.gravity = 17;
+                frameLayout2.addView(view2, layoutParams2);
+                View view3 = new View(this);
+                view3.setBackground(new ArcRing(Color.argb(150, 34, 211, 238), dp(3), 120.0f, 65.0f, 2));
+                FrameLayout.LayoutParams layoutParams3 = new FrameLayout.LayoutParams(dp(186), dp(186));
+                layoutParams3.gravity = 17;
+                frameLayout2.addView(view3, layoutParams3);
+                spin(view2, 2200, false);
+                spin(view3, 3400, true);
+            } catch (Exception e) {
+            }
+            try {
+                ImageView imageView = new ImageView(this);
+                imageView.setImageDrawable(drawable);
+                FrameLayout.LayoutParams layoutParams4 = new FrameLayout.LayoutParams(dp(176), dp(176));
+                layoutParams4.gravity = 17;
+                frameLayout2.addView(imageView, layoutParams4);
+                this.lockContainer.addView(frameLayout2, new LinearLayout.LayoutParams(dp(208), dp(208)));
+            } catch (Exception e) {
+            }
         }
-        TextView textView4 = new TextView(this);
-        textView4.setText("Protege tu acceso");
-        textView4.setTextColor(TEXT);
-        textView4.setTextSize(23.0f);
-        textView4.setTypeface(tfBold());
-        textView4.setGravity(17);
-        textView4.setPadding(0, dp(6), 0, 0);
-        this.lockContainer.addView(textView4, new LinearLayout.LayoutParams(-1, -2));
-        TextView textView22 = new TextView(this);
-        textView22.setText("Utiliza tu huella dactilar para acceder de forma rápida y segura.");
-        textView22.setTextColor(TEXT2);
-        textView22.setTextSize(12.5f);
-        textView22.setGravity(17);
-        textView22.setPadding(0, dp(4), 0, 0);
-        this.lockContainer.addView(textView22);
-        View view42 = new View(this);
-        view42.setBackgroundColor(LINE_SOFT);
-        LinearLayout.LayoutParams layoutParams52 = new LinearLayout.LayoutParams(dp(170), dp(1));
-        layoutParams52.topMargin = dp(14);
-        this.lockContainer.addView(view42, layoutParams52);
-        TextView textView32 = new TextView(this);
-        this.lockStatus = textView32;
-        textView32.setTextColor(TEXT);
+        TextView textView = new TextView(this);
+        textView.setText("Protege tu acceso");
+        textView.setTextColor(TEXT);
+        textView.setTextSize(23.0f);
+        textView.setTypeface(tfBold());
+        textView.setGravity(17);
+        textView.setPadding(0, dp(6), 0, 0);
+        this.lockContainer.addView(textView, new LinearLayout.LayoutParams(-1, -2));
+        TextView textView2 = new TextView(this);
+        textView2.setText("Utiliza tu huella dactilar para acceder de forma rápida y segura.");
+        textView2.setTextColor(TEXT2);
+        textView2.setTextSize(12.5f);
+        textView2.setGravity(17);
+        textView2.setPadding(0, dp(4), 0, 0);
+        this.lockContainer.addView(textView2);
+        try {
+            View view4 = new View(this);
+            view4.setBackgroundColor(LINE_SOFT);
+            LinearLayout.LayoutParams layoutParams5 = new LinearLayout.LayoutParams(dp(170), dp(1));
+            layoutParams5.topMargin = dp(14);
+            this.lockContainer.addView(view4, layoutParams5);
+        } catch (Exception e) {
+        }
+        TextView textView3 = new TextView(this);
+        this.lockStatus = textView3;
+        textView3.setTextColor(TEXT);
         this.lockStatus.setTextSize(13.0f);
         this.lockStatus.setVisibility(8);
         this.lockStatus.setGravity(17);
         this.lockStatus.setPadding(0, dp(18), 0, dp(12));
         this.lockContainer.addView(this.lockStatus);
-        Button makePrimaryButton2 = makePrimaryButton("Autenticar con huella");
-        makePrimaryButton2.setTextSize(15.0f);
-        makePrimaryButton2.setOnClickListener(new View.OnClickListener() { // from class: com.gennis.admin3force.MainActivity$$ExternalSyntheticLambda257
-            @Override // android.view.View.OnClickListener
+        Button makePrimaryButton = makePrimaryButton("Autenticar con huella");
+        makePrimaryButton.setTextSize(15.0f);
+        makePrimaryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
             public final void onClick(View view5) {
                 MainActivity.this.m41lambda$buildLockUi$6$comgennisadmin3forceMainActivity(view5);
             }
         });
-        LinearLayout.LayoutParams fullWidthLp2 = fullWidthLp();
-        fullWidthLp2.height = dp(52);
-        fullWidthLp2.topMargin = dp(30);
-        this.lockContainer.addView(makePrimaryButton2, fullWidthLp2);
+        LinearLayout.LayoutParams fullWidthLp = fullWidthLp();
+        fullWidthLp.height = dp(52);
+        fullWidthLp.topMargin = dp(30);
+        this.lockContainer.addView(makePrimaryButton, fullWidthLp);
         this.lockContainer.setVisibility(8);
         frameLayout.addView(this.lockContainer, new FrameLayout.LayoutParams(-1, -1));
     }
@@ -28592,6 +28560,35 @@ public class MainActivity extends Activity {
 
     @Override // android.app.Activity
     protected void onCreate(Bundle bundle) {
+        try {
+            onCreateReal(bundle);
+        } catch (Throwable th) {
+            showStartupError(th);
+        }
+    }
+
+    // Red de seguridad (v1.5.116): si algo falla al abrir, en vez de cerrarse
+    // sin más, la app muestra el error en pantalla para poder reportarlo.
+    private void showStartupError(Throwable th) {
+        try {
+            super.onCreate(null);
+        } catch (Throwable th2) {
+        }
+        try {
+            TextView tv = new TextView(this);
+            tv.setText("Admin 3FORCE no pudo abrir.\n\nSelecciona y copia este error y envíalo:\n\n" + android.util.Log.getStackTraceString(th));
+            tv.setTextSize(11.0f);
+            tv.setTextIsSelectable(true);
+            tv.setPadding(dp(16), dp(16), dp(16), dp(16));
+            ScrollView sv = new ScrollView(this);
+            sv.addView(tv);
+            setContentView(sv);
+        } catch (Throwable th3) {
+            throw new RuntimeException(th);
+        }
+    }
+
+    private void onCreateReal(Bundle bundle) {
         WindowInsetsController insetsController;
         super.onCreate(bundle);
         try {
